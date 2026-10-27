@@ -1,0 +1,143 @@
+import json
+import os
+import re
+from typing import Any
+from urllib.parse import urlparse
+
+import httpx
+
+TEXT_MODEL = "nvidia/Nemotron-3_5-Lightning"
+VISION_MODEL = "nvidia/Nemotron-3.5-Super-VL"
+NEBIUS_URL = "https://api.tokenfactory.nebius.com/v1/chat/completions"
+TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
+
+# A narrow first-release source set. The matching model must still inspect the
+# content; being on one of these hosts alone never proves a claim.
+PRIMARY_HOSTS = (
+    "arxiv.org",
+    "openreview.net",
+    "pubmed.ncbi.nlm.nih.gov",
+    "pmc.ncbi.nlm.nih.gov",
+    "biorxiv.org",
+    "medrxiv.org",
+    "journals.plos.org",
+    "nature.com",
+    "science.org",
+    "pnas.org",
+    "acm.org",
+    "ieeexplore.ieee.org",
+)
+
+
+class ProviderError(Exception):
+    pass
+
+
+def configured() -> dict[str, bool]:
+    return {
+        "nebius": bool(os.getenv("NEBIUS_API_KEY")),
+        "tavily": bool(os.getenv("TAVILY_API_KEY")),
+    }
+
+
+def is_primary_host(url: str) -> bool:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme == "https" and any(
+        host == allowed or host.endswith("." + allowed) for allowed in PRIMARY_HOSTS
+    )
+
+
+def _json_from_model(content: str) -> dict[str, Any]:
+    cleaned = content.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.I)
+    try:
+        value = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise ProviderError("The model did not return usable structured data.") from exc
+    if not isinstance(value, dict):
+        raise ProviderError("The model returned the wrong data shape.")
+    return value
+
+
+async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False) -> dict[str, Any]:
+    key = os.getenv("NEBIUS_API_KEY")
+    if not key:
+        raise ProviderError("Nebius access is not configured yet.")
+    payload = {
+        "model": VISION_MODEL if vision else TEXT_MODEL,
+        "messages": messages,
+        "temperature": 0,
+        "max_tokens": 1600,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                NEBIUS_URL,
+                headers={"Authorization": f"Bearer {key}"},
+                json=payload,
+            )
+            response.raise_for_status()
+            body = response.json()
+            content = body["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise ProviderError("The model returned an empty response.")
+            return _json_from_model(content)
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+        raise ProviderError("Nebius inference failed. Check access and try again.") from exc
+
+
+async def tavily_search(query: str) -> list[dict[str, str]]:
+    key = os.getenv("TAVILY_API_KEY")
+    if not key:
+        raise ProviderError("Tavily access is not configured yet.")
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            response = await client.post(
+                TAVILY_SEARCH_URL,
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "query": query,
+                    "search_depth": "advanced",
+                    "max_results": 8,
+                    "include_answer": False,
+                    "include_raw_content": False,
+                    "include_domains": list(PRIMARY_HOSTS),
+                },
+            )
+            response.raise_for_status()
+            results = response.json().get("results", [])
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ProviderError("Source search failed. Please try again.") from exc
+    return [
+        {
+            "url": str(item.get("url", "")),
+            "title": str(item.get("title", "")),
+            "snippet": str(item.get("content", "")),
+        }
+        for item in results
+        if isinstance(item, dict) and is_primary_host(str(item.get("url", "")))
+    ]
+
+
+async def tavily_extract(url: str, query: str) -> str:
+    if not is_primary_host(url):
+        raise ProviderError("That source is outside the supported research sites.")
+    key = os.getenv("TAVILY_API_KEY")
+    if not key:
+        raise ProviderError("Tavily access is not configured yet.")
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            response = await client.post(
+                TAVILY_EXTRACT_URL,
+                headers={"Authorization": f"Bearer {key}"},
+                json={"urls": [url], "query": query, "extract_depth": "advanced"},
+            )
+            response.raise_for_status()
+            results = response.json().get("results", [])
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ProviderError("The source could not be retrieved.") from exc
+    if not results:
+        raise ProviderError("The source could not be retrieved.")
+    return str(results[0].get("raw_content", ""))[:20000]
