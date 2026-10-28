@@ -8,6 +8,7 @@ node_modules/
 .pnpm-store/
 .uv-cache/
 dist/
+.vite/
 *.tsbuildinfo
 .DS_Store
 *.db
