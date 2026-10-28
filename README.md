@@ -16,7 +16,7 @@ StudyLens presents evidence for people to inspect. It does not assign a universa
 
 ## Build status
 
-The local web interface, API, persistence, and mocked integration tests are in place. The interface includes a clearly labeled worked example based on the published *Attention Is All You Need* abstract; it makes no model call. **Live Tavily Search and Extract calls were verified on October 27, 2026. Nebius inference has not been verified yet.** A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
+The local web interface, API, persistence, and mocked integration tests are in place. The interface includes a clearly labeled worked example based on the published *Attention Is All You Need* abstract; it makes no model call. **Live Tavily Search and Extract calls were verified on October 27, 2026. A live Nemotron 3.5 Lightning call through Nebius Token Factory was verified on October 28, 2026.** A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
 
 ## Run locally
 
@@ -27,6 +27,8 @@ Install Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+, and [pnpm](
 3. In a second terminal in `web`, run `pnpm install`, then `pnpm dev`. Open `http://127.0.0.1:5173`.
 
 The Vite development server forwards `/api` calls to port 8000. If the API or keys are missing, the interface shows that state. Its worked example can be explored without credentials and is visibly identified as an example, never as a live investigation.
+
+The API disables model reasoning for structured extraction, caps each model response at 800 tokens by default, records returned token usage in the local SQLite database, and stops after 30 Nebius calls per UTC day. Override `NEBIUS_MAX_OUTPUT_TOKENS` or `STUDYLENS_DAILY_NEBIUS_CALL_LIMIT` only after checking the Token Factory balance. These application controls do not replace account billing controls; keep automatic top-ups disabled if the account must never charge a card.
 
 ## Verify
 

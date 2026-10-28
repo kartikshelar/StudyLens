@@ -1,16 +1,21 @@
 import json
 import os
 import re
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+
+from .store import provider_usage_since, record_provider_usage
 
 TEXT_MODEL = "nvidia/Nemotron-3_5-Lightning"
 VISION_MODEL = "nvidia/Nemotron-3.5-Super-VL"
 NEBIUS_URL = "https://api.tokenfactory.nebius.com/v1/chat/completions"
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
+DEFAULT_NEBIUS_MAX_OUTPUT_TOKENS = 800
+DEFAULT_DAILY_NEBIUS_CALL_LIMIT = 30
 
 # A narrow first-release source set. The matching model must still inspect the
 # content; being on one of these hosts alone never proves a claim.
@@ -32,6 +37,30 @@ PRIMARY_HOSTS = (
 
 class ProviderError(Exception):
     pass
+
+
+def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return max(minimum, min(value, maximum))
+
+
+def nebius_budget_status() -> dict[str, int]:
+    limit = _bounded_env_int(
+        "STUDYLENS_DAILY_NEBIUS_CALL_LIMIT",
+        DEFAULT_DAILY_NEBIUS_CALL_LIMIT,
+        1,
+        500,
+    )
+    start_of_day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00+00:00")
+    usage = provider_usage_since("nebius", start_of_day)
+    return {
+        **usage,
+        "call_limit": limit,
+        "calls_remaining": max(0, limit - usage["call_count"]),
+    }
 
 
 def configured() -> dict[str, bool]:
@@ -65,11 +94,24 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
     key = os.getenv("NEBIUS_API_KEY")
     if not key:
         raise ProviderError("Nebius access is not configured yet.")
+    budget = nebius_budget_status()
+    if budget["calls_remaining"] <= 0:
+        raise ProviderError(
+            "The local daily Nebius call limit has been reached. Increase it only after checking the Token Factory balance."
+        )
+    model = VISION_MODEL if vision else TEXT_MODEL
     payload = {
-        "model": VISION_MODEL if vision else TEXT_MODEL,
+        "model": model,
         "messages": messages,
         "temperature": 0,
-        "max_tokens": 1600,
+        "max_tokens": _bounded_env_int(
+            "NEBIUS_MAX_OUTPUT_TOKENS",
+            DEFAULT_NEBIUS_MAX_OUTPUT_TOKENS,
+            64,
+            1600,
+        ),
+        "reasoning_effort": "none",
+        "response_format": {"type": "json_object"},
     }
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -80,6 +122,14 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
             )
             response.raise_for_status()
             body = response.json()
+            usage = body.get("usage", {})
+            record_provider_usage(
+                "nebius",
+                model,
+                int(usage.get("prompt_tokens", 0)),
+                int(usage.get("completion_tokens", 0)),
+                int(usage.get("total_tokens", 0)),
+            )
             content = body["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 raise ProviderError("The model returned an empty response.")

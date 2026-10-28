@@ -16,6 +16,7 @@ from .providers import (
     TEXT_MODEL,
     VISION_MODEL,
     configured,
+    nebius_budget_status,
     nemotron_json,
     is_primary_host,
     tavily_extract,
@@ -124,7 +125,11 @@ async def _assess_candidate(report: dict[str, Any], candidate: dict[str, str]) -
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "providers_configured": configured()}
+    return {
+        "status": "ok",
+        "providers_configured": configured(),
+        "nebius_budget": nebius_budget_status(),
+    }
 
 
 @app.post("/api/claims/extract-text")

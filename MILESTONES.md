@@ -5,7 +5,7 @@ The objective is a useful public product and a defensible portfolio project. Sub
 ## Gate 0 — access and repository
 
 - [x] Create a dedicated local project and Git repository.
-- [ ] Obtain Nebius Token Factory access and make a successful call to an NVIDIA Nemotron model.
+- [x] Obtain Nebius Token Factory access and make a successful call to an NVIDIA Nemotron model. Verified with Nemotron 3.5 Lightning on October 28, 2026; the final connection check used 35 total tokens with reasoning disabled.
 - [x] Obtain Tavily access and make a successful search call. Verified with a live research-paper search on October 27, 2026; Tavily Extract also retrieved a public arXiv abstract.
 - [x] Keep credentials in environment variables; verify no key enters Git history. The local `backend/.env` is ignored and has never been tracked.
 
