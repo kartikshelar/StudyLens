@@ -11,10 +11,10 @@ The objective is a useful public product and a defensible portfolio project. Sub
 
 ## Gate 1 — one real investigation
 
-- [ ] Accept a user-written research claim and let the user confirm its extracted wording.
+- [ ] Accept a user-written research claim and let the user confirm its extracted wording. Live text extraction succeeded on October 28, 2026, and its output led to a successful Chinchilla investigation through the API; the on-screen review step still needs a hands-on check.
 - [x] Search for candidate primary sources using a live service. Tavily returned Chinchilla candidates on October 28, 2026.
 - [x] Present the selected source, supporting passage, and visible reason for the match. The October 28 direct API smoke test selected arXiv:2203.15556 with an exact abstract passage. The user-facing flow still needs review.
-- [ ] Return a useful **source not confirmed** result when no defensible source is found.
+- [x] Return a useful **source not confirmed** result when no defensible source is found. An October 28 live test with a deliberately invented Stanford green-tea claim found four unrelated candidates and selected none.
 - [x] Record the model and search calls used in the investigation. The report trace records them; the local usage ledger recorded two Nebius calls for the successful smoke test.
 
 ## Gate 2 — complete user journey
