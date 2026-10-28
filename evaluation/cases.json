@@ -1,0 +1,566 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-10-28",
+  "verified_by": "Kartik (hand review of records fetched from arXiv API, NCBI E-utilities, Crossref, and the publisher or index pages listed in each case)",
+  "notes": "Every title, identifier, and URL below was checked against the arXiv API, PubMed/PMC records, or Crossref, and every URL was fetched on the verification date. Passages are copied from those records. See evaluation/README.md for the method, field definitions, and scoring.",
+  "cases": [
+    {
+      "id": "match-alphafold2",
+      "category": "original_match",
+      "input_text": "DeepMind's AlphaFold can now predict protein structures with atomic accuracy — competitive with experimental structures in most cases, according to their 2021 Nature paper.",
+      "claim": "AlphaFold predicts protein structures with atomic accuracy, competitive with experimental structures in most cases.",
+      "search_query": "AlphaFold protein structure prediction atomic accuracy Nature 2021 Jumper",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "supports",
+        "source": {
+          "title": "Highly accurate protein structure prediction with AlphaFold",
+          "authors": "Jumper J, Evans R, Pritzel A, et al.",
+          "venue": "Nature 596(7873):583-589",
+          "year": 2021,
+          "doi": "10.1038/s41586-021-03819-2",
+          "pmid": "34265844",
+          "pmcid": "PMC8371605"
+        },
+        "accepted_urls": [
+          "https://www.nature.com/articles/s41586-021-03819-2",
+          "https://pubmed.ncbi.nlm.nih.gov/34265844/",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC8371605/"
+        ],
+        "abstract_only_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/34265844/"
+        ],
+        "justifying_passages": [
+          {
+            "text": "Here we provide the first computational method that can regularly predict protein structures with atomic accuracy even in cases in which no similar structure is known.",
+            "found_at": [
+              "https://www.nature.com/articles/s41586-021-03819-2",
+              "https://pubmed.ncbi.nlm.nih.gov/34265844/"
+            ]
+          },
+          {
+            "text": "demonstrating accuracy competitive with experimental structures in a majority of cases and greatly outperforming other methods",
+            "found_at": [
+              "https://www.nature.com/articles/s41586-021-03819-2"
+            ]
+          }
+        ],
+        "wording_gap_should_mention": [
+          "The 'competitive with experimental structures' result comes from the CASP14 assessment, not every protein.",
+          "The paper says 'a majority of cases'; the claim says 'most cases', which is close but not a broader guarantee."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Highly accurate protein structure prediction for the human proteome",
+          "type": "sibling_paper",
+          "url": "https://www.nature.com/articles/s41586-021-03828-1",
+          "ids": { "doi": "10.1038/s41586-021-03828-1", "pmid": "34293799", "pmcid": "PMC8387240" },
+          "why_plausible": "Same group, same journal issue, and nearly the same title. It applies AlphaFold2 to the human proteome rather than reporting the method and its CASP14 accuracy."
+        },
+        {
+          "title": "Accurate structure prediction of biomolecular interactions with AlphaFold 3",
+          "type": "later_version",
+          "url": "https://www.nature.com/articles/s41586-024-07487-w",
+          "ids": { "doi": "10.1038/s41586-024-07487-w", "pmid": "38718835", "pmcid": "PMC11168924" },
+          "why_plausible": "Same model family in Nature, and its abstract opens by crediting the earlier model ('has spurred a revolution in modelling the structure of proteins'). It is a 2024 paper about complexes.",
+          "note": "In the PubMed abstract the reference superscript merges into the model name ('AlphaFold 21 has spurred'), a text-extraction artifact that any quote check must tolerate or avoid."
+        },
+        {
+          "title": "Protein-structure prediction revolutionized",
+          "type": "news_and_views",
+          "url": "https://www.nature.com/articles/d41586-021-02265-4",
+          "ids": { "doi": "10.1038/d41586-021-02265-4", "pmid": "34426694" },
+          "why_plausible": "PubMed links it as a comment on both AlphaFold papers. It is commentary on nature.com, which is an allowed host."
+        },
+        {
+          "title": "‘It will change everything’: DeepMind’s AI makes gigantic leap in solving protein structures",
+          "type": "news",
+          "url": "https://www.nature.com/articles/d41586-020-03348-4",
+          "ids": { "doi": "10.1038/d41586-020-03348-4" },
+          "why_plausible": "Nature news (30 November 2020) on the same CASP14 result. Without a subscription the page returns a paywall teaser plus about 7,000 characters of boilerplate, which passes the app's 200-character floor.",
+          "passage": {
+            "text": "An artificial intelligence (AI) network developed by Google AI offshoot DeepMind has made a gargantuan leap in solving one of biology’s grandest challenges — determining a protein’s 3D shape from its amino-acid sequence.",
+            "found_at": ["https://www.nature.com/articles/d41586-020-03348-4"],
+            "note": "This teaser is a real, verifiable quote that supports the general claim. It is from journalism, not the study."
+          }
+        }
+      ],
+      "why_difficult": "Four nature.com pages share the topic, the lab, and most title words. Two are journalism on an allowed host. The news teaser makes the exact-quote check pass on the wrong page.",
+      "hazards": [
+        "nature.com redirects scripted clients to '?error=cookies_not_supported&code=…' but still serves the article and abstract."
+      ]
+    },
+    {
+      "id": "match-alphafold-human-proteome-overclaim",
+      "category": "original_match",
+      "input_text": "A 2021 Nature paper says AlphaFold has now accurately predicted the structure of nearly every human protein.",
+      "claim": "AlphaFold has accurately predicted the structure of nearly every human protein.",
+      "search_query": "AlphaFold human proteome structure prediction Nature 2021",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "partly_supports",
+        "source": {
+          "title": "Highly accurate protein structure prediction for the human proteome",
+          "authors": "Tunyasuvunakool K, Adler J, Wu Z, et al.",
+          "venue": "Nature 596(7873):590-596",
+          "year": 2021,
+          "doi": "10.1038/s41586-021-03828-1",
+          "pmid": "34293799",
+          "pmcid": "PMC8387240"
+        },
+        "accepted_urls": [
+          "https://www.nature.com/articles/s41586-021-03828-1",
+          "https://pubmed.ncbi.nlm.nih.gov/34293799/"
+        ],
+        "abstract_only_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/34293799/"
+        ],
+        "justifying_passages": [
+          {
+            "text": "at a scale that covers almost the entire human proteome (98.5% of human proteins)",
+            "found_at": ["https://www.nature.com/articles/s41586-021-03828-1"]
+          },
+          {
+            "text": "The resulting dataset covers 58% of residues with a confident prediction, of which a subset (36% of all residues) have very high confidence.",
+            "found_at": [
+              "https://www.nature.com/articles/s41586-021-03828-1",
+              "https://pubmed.ncbi.nlm.nih.gov/34293799/"
+            ]
+          }
+        ],
+        "wording_gap_should_mention": [
+          "Predictions were made for 98.5% of human proteins, but only 58% of residues have a confident prediction (36% very high confidence).",
+          "'Accurately predicted … nearly every human protein' overstates the share of confident predictions."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Highly accurate protein structure prediction with AlphaFold",
+          "type": "sibling_paper",
+          "url": "https://www.nature.com/articles/s41586-021-03819-2",
+          "ids": { "doi": "10.1038/s41586-021-03819-2", "pmid": "34265844", "pmcid": "PMC8371605" },
+          "why_plausible": "The more famous paper, with 'atomic accuracy' language. It is the correct answer for match-alphafold2 but not for this proteome-coverage claim."
+        },
+        {
+          "title": "Protein-structure prediction revolutionized",
+          "type": "news_and_views",
+          "url": "https://www.nature.com/articles/d41586-021-02265-4",
+          "ids": { "doi": "10.1038/d41586-021-02265-4", "pmid": "34426694" },
+          "why_plausible": "Commentary on both papers. Its opening discusses the unknown structures of 'more than two-thirds of those in the human proteome'."
+        }
+      ],
+      "why_difficult": "This is the mirror of match-alphafold2: the decoy there is the answer here. A selector that favors the most-cited or most 'accurate'-sounding title will pick the wrong one. The correct source only partly supports the claim, so the report must show the source and the wording gap without abstaining.",
+      "hazards": []
+    },
+    {
+      "id": "match-bnt162b2-phase3",
+      "category": "original_match",
+      "input_text": "The Pfizer-BioNTech vaccine was 95% effective at preventing Covid-19 in its phase 3 trial of about 43,000 people (NEJM, December 2020).",
+      "claim": "The Pfizer-BioNTech vaccine was 95% effective at preventing Covid-19 in a phase 3 trial of about 43,000 people.",
+      "search_query": "BNT162b2 mRNA Covid-19 vaccine safety efficacy phase 3 trial NEJM 2020 Polack",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "supports",
+        "source": {
+          "title": "Safety and Efficacy of the BNT162b2 mRNA Covid-19 Vaccine",
+          "authors": "Polack FP, Thomas SJ, Kitchin N, et al.",
+          "venue": "N Engl J Med 383(27):2603-2615",
+          "year": 2020,
+          "doi": "10.1056/NEJMoa2034577",
+          "pmid": "33301246",
+          "pmcid": "PMC7745181"
+        },
+        "accepted_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/33301246/",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC7745181/"
+        ],
+        "abstract_only_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/33301246/"
+        ],
+        "justifying_passages": [
+          {
+            "text": "BNT162b2 was 95% effective in preventing Covid-19 (95% credible interval, 90.3 to 97.6).",
+            "found_at": [
+              "https://pubmed.ncbi.nlm.nih.gov/33301246/",
+              "https://pmc.ncbi.nlm.nih.gov/articles/PMC7745181/"
+            ]
+          },
+          {
+            "text": "A total of 43,548 participants underwent randomization, of whom 43,448 received injections",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/33301246/"]
+          }
+        ],
+        "wording_gap_should_mention": [
+          "Efficacy is against laboratory-confirmed Covid-19 with onset at least 7 days after the second dose.",
+          "Participants were 16 years of age or older; safety was reported over a median of 2 months.",
+          "'About 43,000' is the number randomized (43,548), not the number in the efficacy analysis."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Safety and Efficacy of the BNT162b2 mRNA Covid-19 Vaccine through 6 Months",
+          "type": "follow_up",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34525277/",
+          "ids": { "doi": "10.1056/NEJMoa2110345", "pmid": "34525277", "pmcid": "PMC8461570" },
+          "why_plausible": "Same trial (NCT04368728), same title plus 'through 6 Months', same journal. It reports a different figure.",
+          "passage": {
+            "text": "Vaccine efficacy against Covid-19 was 91.3% (95% confidence interval [CI], 89.0 to 93.2) through 6 months of follow-up",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/34525277/"]
+          }
+        },
+        {
+          "title": "Safety and Efficacy of the BNT162b2 mRNA Covid-19 Vaccine.",
+          "type": "letter",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33596348/",
+          "ids": { "doi": "10.1056/NEJMc2036242", "pmid": "33596348" },
+          "why_plausible": "A correspondence item whose title is identical to the original. PMIDs 33596349 and 33596350 are two more letters with the same title. The PubMed page shows 'No abstract available' and labels the item a comment on the original.",
+          "note": "A title-only selector cannot tell these apart from the original."
+        },
+        {
+          "title": "Efficacy and Safety of the mRNA-1273 SARS-CoV-2 Vaccine",
+          "type": "different_study_same_topic",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33378609/",
+          "ids": { "doi": "10.1056/NEJMoa2035389", "pmid": "33378609", "pmcid": "PMC7787219" },
+          "why_plausible": "A phase 3 mRNA vaccine trial in NEJM, around the same time and with a similar efficacy figure (94.1%). It is the Moderna vaccine, with 30,420 participants."
+        },
+        {
+          "title": "US authorization of first COVID vaccine marks new phase in safety monitoring",
+          "type": "news",
+          "url": "https://www.nature.com/articles/d41586-020-03542-4",
+          "ids": { "doi": "10.1038/d41586-020-03542-4", "pmid": "33311629" },
+          "why_plausible": "PubMed links it as a comment on the original. It is Nature news, and only a paywall teaser is retrievable."
+        }
+      ],
+      "why_difficult": "Three PubMed records share the original's exact title, and a fourth adds only 'through 6 Months'. nejm.org is not an allowed host, so the original is reachable only through PubMed (abstract only) or PMC. The report must label the PubMed version as partial evidence.",
+      "hazards": [
+        "Accepted URLs are on PubMed/PMC, not the publisher. The DOI landing page is outside the allowed hosts."
+      ]
+    },
+    {
+      "id": "match-chinchilla",
+      "category": "original_match",
+      "input_text": "DeepMind found that a 70B-parameter model trained on 4x more data beats their 280B Gopher, and that model size and training data should be scaled equally.",
+      "claim": "A 70B-parameter model trained on 4 times more data outperformed the 280B Gopher model, and model size and training tokens should be scaled equally.",
+      "search_query": "Chinchilla compute-optimal training large language models model size training tokens Hoffmann 2022",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "supports",
+        "source": {
+          "title": "Training Compute-Optimal Large Language Models",
+          "authors": "Hoffmann J, Borgeaud S, Mensch A, et al.",
+          "venue": "arXiv preprint",
+          "year": 2022,
+          "arxiv_id": "2203.15556"
+        },
+        "accepted_urls": [
+          "https://arxiv.org/abs/2203.15556"
+        ],
+        "abstract_only_urls": [
+          "https://arxiv.org/abs/2203.15556"
+        ],
+        "justifying_passages": [
+          {
+            "text": "we find that for compute-optimal training, the model size and the number of training tokens should be scaled equally: for every doubling of model size the number of training tokens should also be doubled.",
+            "found_at": ["https://arxiv.org/abs/2203.15556"]
+          },
+          {
+            "text": "Chinchilla uniformly and significantly outperforms Gopher (280B), GPT-3 (175B), Jurassic-1 (178B), and Megatron-Turing NLG (530B) on a large range of downstream evaluation tasks.",
+            "found_at": ["https://arxiv.org/abs/2203.15556"]
+          }
+        ],
+        "wording_gap_should_mention": [
+          "The claim omits that Chinchilla used the same compute budget as Gopher.",
+          "'Scaled equally' is the paper's finding for compute-optimal training, not a general rule for any training run."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Scaling Laws for Neural Language Models",
+          "type": "earlier_paper_different_conclusion",
+          "url": "https://arxiv.org/abs/2001.08361",
+          "ids": { "arxiv_id": "2001.08361" },
+          "why_plausible": "The best-known scaling-law paper, on the same question. Its abstract recommends training very large models on a relatively modest amount of data."
+        },
+        {
+          "title": "Chinchilla Scaling: A replication attempt",
+          "type": "replication",
+          "url": "https://arxiv.org/abs/2404.10102",
+          "ids": { "arxiv_id": "2404.10102" },
+          "why_plausible": "It has 'Chinchilla' in the title, and its abstract opens by restating the original.",
+          "passage": {
+            "text": "Hoffmann et al. (2022) propose three methods for estimating a compute-optimal scaling law.",
+            "found_at": ["https://arxiv.org/abs/2404.10102"]
+          }
+        },
+        {
+          "title": "Scaling Language Models: Methods, Analysis & Insights from Training Gopher",
+          "type": "related_paper_same_lab",
+          "url": "https://arxiv.org/abs/2112.11446",
+          "ids": { "arxiv_id": "2112.11446" },
+          "why_plausible": "The Gopher (280B) paper, from the same lab, which the claim names."
+        },
+        {
+          "title": "LLaMA: Open and Efficient Foundation Language Models",
+          "type": "citing_paper",
+          "url": "https://arxiv.org/abs/2302.13971",
+          "ids": { "arxiv_id": "2302.13971" },
+          "why_plausible": "Its abstract compares against 'Chinchilla-70B'. It is a different model paper."
+        }
+      ],
+      "why_difficult": "arXiv has several closely related scaling-law papers, and a replication whose first sentence restates the original. The arXiv abstract also contains a LaTeX token and a repeated word (see hazards), so a model that tidies the quote will fail exact verification even on the correct source.",
+      "hazards": [
+        "The arXiv abstract page literally reads 'uses the same compute budget as Gopher but with 70B parameters and 4$\\times$ more more data'. A model that copies this as '4× more data' fails verification under both the current app rule and NFKC/quote normalization. Prefer the two justifying passages above."
+      ]
+    },
+    {
+      "id": "match-kaplan-contradicts",
+      "category": "original_match_contradicts",
+      "input_text": "The 2020 'Scaling Laws for Neural Language Models' paper by Kaplan and colleagues found that, for a fixed compute budget, model size and training data should be scaled up equally.",
+      "claim": "Kaplan and colleagues' 2020 scaling-laws paper found that, for a fixed compute budget, model size and training data should be scaled up equally.",
+      "search_query": "Kaplan 2020 scaling laws neural language models compute budget model size dataset size",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "contradicts",
+        "source": {
+          "title": "Scaling Laws for Neural Language Models",
+          "authors": "Kaplan J, McCandlish S, Henighan T, et al.",
+          "venue": "arXiv preprint",
+          "year": 2020,
+          "arxiv_id": "2001.08361"
+        },
+        "accepted_urls": [
+          "https://arxiv.org/abs/2001.08361"
+        ],
+        "abstract_only_urls": [
+          "https://arxiv.org/abs/2001.08361"
+        ],
+        "justifying_passages": [
+          {
+            "text": "Larger models are significantly more sample-efficient, such that optimally compute-efficient training involves training very large models on a relatively modest amount of data and stopping significantly before convergence.",
+            "found_at": ["https://arxiv.org/abs/2001.08361"]
+          }
+        ],
+        "wording_gap_should_mention": [
+          "The paper recommends spending a fixed compute budget on very large models with a relatively modest amount of data, not scaling both equally.",
+          "Equal scaling is the later finding of Hoffmann et al. (2022)."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Training Compute-Optimal Large Language Models",
+          "type": "later_paper_matching_the_claimed_conclusion",
+          "url": "https://arxiv.org/abs/2203.15556",
+          "ids": { "arxiv_id": "2203.15556" },
+          "why_plausible": "Its abstract states the claim's conclusion almost word for word ('should be scaled equally'). It is a 2022 paper by different authors.",
+          "passage": {
+            "text": "we find that for compute-optimal training, the model size and the number of training tokens should be scaled equally",
+            "found_at": ["https://arxiv.org/abs/2203.15556"]
+          }
+        }
+      ],
+      "why_difficult": "The claim names the right paper but credits it with a conclusion the paper does not reach. A system that looks for support will pick the paper that agrees with the claim (Hoffmann 2022), or will abstain on the correct paper because no 'supporting' excerpt exists. The correct behavior is to show the named paper and say that its passage contradicts the claim.",
+      "hazards": []
+    },
+    {
+      "id": "match-facebook-emotional-contagion",
+      "category": "original_match",
+      "input_text": "A Facebook experiment on nearly 700,000 users showed that seeing fewer positive posts in the News Feed made people depressed.",
+      "claim": "A Facebook experiment on nearly 700,000 users showed that seeing fewer positive posts in the News Feed made people depressed.",
+      "search_query": "Facebook News Feed experiment emotional contagion 689,003 users PNAS 2014",
+      "expected": {
+        "outcome": "source_confirmed",
+        "relation": "partly_supports",
+        "source": {
+          "title": "Experimental evidence of massive-scale emotional contagion through social networks",
+          "authors": "Kramer AD, Guillory JE, Hancock JT",
+          "venue": "Proc Natl Acad Sci U S A 111(24):8788-8790",
+          "year": 2014,
+          "doi": "10.1073/pnas.1320040111",
+          "pmid": "24889601",
+          "pmcid": "PMC4066473"
+        },
+        "accepted_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/24889601/",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC4066473/",
+          "https://www.pnas.org/doi/10.1073/pnas.1320040111"
+        ],
+        "abstract_only_urls": [
+          "https://pubmed.ncbi.nlm.nih.gov/24889601/"
+        ],
+        "justifying_passages": [
+          {
+            "text": "When positive expressions were reduced, people produced fewer positive posts and more negative posts; when negative expressions were reduced, the opposite pattern occurred.",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/24889601/"]
+          },
+          {
+            "text": "We show, via a massive (N = 689,003) experiment on Facebook, that emotional states can be transferred to others via emotional contagion",
+            "found_at": ["https://pmc.ncbi.nlm.nih.gov/articles/PMC4066473/"],
+            "note": "This is the Significance statement. It is on PMC but not in the PubMed abstract. On the PMC page, italic markup can render the count as '( N = 689,003)'."
+          }
+        ],
+        "wording_gap_should_mention": [
+          "The outcome measured was the emotional content of users' own posts, not depression or any clinical measure.",
+          "The abstract's mention of depression refers to an earlier, cited network study (Fowler and Christakis 2008), not this experiment."
+        ]
+      },
+      "decoys": [
+        {
+          "title": "Editorial expression of concern: Experimental evidence of massive-scale emotional contagion through social networks",
+          "type": "notice",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24994898/",
+          "ids": { "doi": "10.1073/pnas.1412583111", "pmid": "24994898", "pmcid": "PMC4115552" },
+          "why_plausible": "Its title contains the full original title. Crossref lists the same DOI as 'Correction for Kramer et al., Experimental evidence of massive-scale emotional contagion through social networks'. PubMed shows 'No abstract available'."
+        },
+        {
+          "title": "(in-page trap) cited study sentence inside the original abstract",
+          "type": "citation_inside_source",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24889601/",
+          "ids": {},
+          "why_plausible": "The correct page contains the word 'depression', but only in a sentence about a different, cited study. A model looking for support for 'made people depressed' is likely to quote it.",
+          "passage": {
+            "text": "Data from a large real-world social network, collected over a 20-y period suggests that longer-lasting moods (e.g., depression, happiness) can be transferred through networks [Fowler JH, Christakis NA (2008) BMJ 337:a2338], although the results are controversial.",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/24889601/"]
+          }
+        }
+      ],
+      "why_difficult": "The source is easy to find, but the claim adds a clinical outcome (depression) that the study did not measure. The original abstract contains 'depression' in a sentence about another study, so the exact-quote check passes on a misleading excerpt.",
+      "hazards": [
+        "pnas.org returned HTTP 403 to scripted requests on the verification date; the DOI, title, and journal for that URL were verified through Crossref instead.",
+        "The PMC page uses a curly apostrophe ('others’ positive experiences') where PubMed uses a straight one. The current app rule fails on that difference; NFKC plus quote normalization passes."
+      ]
+    },
+    {
+      "id": "abstain-green-tea-fabricated",
+      "category": "abstain",
+      "input_text": "A 2025 Stanford study published in Nature found that drinking three cups of green tea a day cuts Alzheimer's risk by 47%.",
+      "claim": "A 2025 Stanford study in Nature found that drinking three cups of green tea a day cuts Alzheimer's risk by 47%.",
+      "search_query": "green tea Alzheimer's risk Stanford Nature 2025 three cups",
+      "expected": {
+        "outcome": "source_not_confirmed",
+        "relation": null,
+        "source": null,
+        "accepted_urls": [],
+        "absence_evidence": [
+          { "index": "PubMed", "query": "green tea[tiab] AND (alzheimer*[tiab] OR dementia[tiab]) AND 2025[dp] AND (Nature[ta] OR \"Nat Med\"[ta] OR \"Nat Aging\"[ta] OR \"Nat Commun\"[ta])", "results": 0 },
+          { "index": "PubMed", "query": "green tea[tiab] AND (alzheimer*[tiab] OR dementia[tiab]) AND Stanford[ad]", "results": 0 }
+        ],
+        "justifying_passages": [
+          {
+            "text": "0.47 (95% CI: 0.25-0.86) among those who consumed green tea 1-6 days per week",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/24828424/"],
+            "note": "This is the closest real '47' figure: an odds ratio for cognitive decline (dementia or MCI) in a Japanese cohort, for 1-6 days per week of consumption. It is not a 47% risk reduction (an odds ratio of 0.47 is roughly a 53% reduction in odds), and it is not from Stanford, Nature, or 2025."
+          },
+          {
+            "text": "The adjusted HR for dementia by cup-based green tea consumption (1 cup = 150 mL) was 0.952 (95%CI:0.92-0.99), corresponding to a 4.8% reduction per 1 cup increase.",
+            "found_at": ["https://pubmed.ncbi.nlm.nih.gov/40561856/"],
+            "note": "This is a real 2025 paper with a per-cup result, but it is a Japanese cohort in a different journal with a different effect size."
+          }
+        ],
+        "expected_message": "Related green-tea and dementia studies exist, but none reports this Stanford/Nature 2025 result."
+      },
+      "decoys": [
+        {
+          "title": "Consumption of green tea, but not black tea or coffee, is associated with reduced risk of cognitive decline",
+          "type": "related_study_numeric_trap",
+          "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0096013",
+          "ids": { "doi": "10.1371/journal.pone.0096013", "pmid": "24828424" },
+          "why_plausible": "It is on an allowed host, about green tea and cognitive decline, and contains '0.47', which a model can misread as the claim's 47%."
+        },
+        {
+          "title": "Green tea consumption and dementia risk in community-dwelling Japanese people aged 40-74 years: A 12-year cohort study",
+          "type": "related_study_year_match",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40561856/",
+          "ids": { "doi": "10.1016/j.jnha.2025.100615", "pmid": "40561856" },
+          "why_plausible": "Published in 2025, it gives a per-cup dementia result, so the year and the 'cups' framing both match."
+        }
+      ],
+      "why_difficult": "The claim names a specific study that was constructed for this test, and PubMed has no record of it under the queries above. Real studies on the same exposure and outcome exist, one shares the year, and one contains the digits '47'. Returning any of them as the source would tell a reader that a fabricated study was found.",
+      "hazards": [
+        "The PLOS page uses en dashes ('0.25–0.86', '1–6 days') where PubMed uses hyphens. A model copying from one rendering will fail the current app rule on the other.",
+        "Absence in PubMed under these queries is strong but not conclusive evidence. Re-run the queries before relying on this case."
+      ]
+    },
+    {
+      "id": "abstain-ten-percent-brain",
+      "category": "abstain",
+      "input_text": "Neuroscientists have shown that humans only use 10% of their brains.",
+      "claim": "Neuroscientists have shown that humans only use 10% of their brains.",
+      "search_query": "humans use only 10 percent of brain neuroscience study",
+      "expected": {
+        "outcome": "source_not_confirmed",
+        "relation": null,
+        "source": null,
+        "accepted_urls": [],
+        "justifying_passages": [
+          {
+            "text": "Other examples of neuromyths include such ideas as “we only use 10% of our brain”",
+            "found_at": ["https://pmc.ncbi.nlm.nih.gov/articles/PMC3475349/"],
+            "note": "The research literature that contains the claim's wording presents it as a misconception, not a finding."
+          },
+          {
+            "text": "We only use 10% of our brain.",
+            "found_at": ["https://pmc.ncbi.nlm.nih.gov/articles/PMC3475349/"],
+            "note": "A survey item in the same paper, listed among the neuromyth statements. Out of context it reads like a finding, and it matches the exact-quote check word for word."
+          }
+        ],
+        "expected_message": "No study reporting this result was found. Pages that mention it describe it as a myth."
+      },
+      "decoys": [
+        {
+          "title": "Neuromyths in Education: Prevalence and Predictors of Misconceptions among Teachers",
+          "type": "debunking_paper",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3475349/",
+          "ids": { "doi": "10.3389/fpsyg.2012.00429", "pmid": "23087664", "pmcid": "PMC3475349" },
+          "why_plausible": "Its full text contains the claim almost verbatim, more than once. Its PubMed abstract does not mention '10%' at all, so the trap appears only on the PMC full-text page.",
+          "passage": {
+            "text": "The statement “we only use 10% of our brain”, defined by the Organisation for Economic Co-operation, and Development (2002) as a neuromyth, was the most prevalent misconception among the public.",
+            "found_at": ["https://pmc.ncbi.nlm.nih.gov/articles/PMC3475349/"],
+            "note": "Text as in the PMC JATS XML. The rendered page wraps '2002' in a citation link, which can turn into '( 2002 )' after HTML-to-text conversion, so this full sentence may fail exact verification. The shorter passages above do not have this problem."
+          }
+        }
+      ],
+      "why_difficult": "There is no original study, yet real papers on allowed hosts contain the claim's exact words, because they are debunking it. The quote check passes, so only a judgment about who asserts the sentence, and why, prevents a misleading report.",
+      "hazards": [
+        "The passages use curly quotation marks (U+201C/U+201D)."
+      ]
+    },
+    {
+      "id": "abstain-screen-time-aggregate",
+      "category": "abstain",
+      "input_text": "Studies show that screen time causes depression in teenagers.",
+      "claim": "Studies show that screen time causes depression in teenagers.",
+      "search_query": "screen time causes depression teenagers study",
+      "expected": {
+        "outcome": "source_not_confirmed",
+        "relation": null,
+        "source": null,
+        "accepted_urls": [],
+        "justifying_passages": [
+          {
+            "text": "The association we find between digital technology use and adolescent well-being is negative but small, explaining at most 0.4% of the variation in well-being.",
+            "found_at": [
+              "https://www.nature.com/articles/s41562-018-0506-1",
+              "https://pubmed.ncbi.nlm.nih.gov/30944443/"
+            ],
+            "note": "This is the strongest relevant paper on an allowed host. It reports a small correlational association, not a causal effect on depression."
+          }
+        ],
+        "expected_message": "The claim does not identify a single study. A related study is available for inspection, but it does not report this result."
+      },
+      "decoys": [
+        {
+          "title": "The association between adolescent well-being and digital technology use",
+          "type": "related_study_contradicting_framing",
+          "url": "https://www.nature.com/articles/s41562-018-0506-1",
+          "ids": { "doi": "10.1038/s41562-018-0506-1", "pmid": "30944443" },
+          "why_plausible": "A large Nature Human Behaviour study (total n = 355,358) on exactly this topic, which concludes 'these effects are too small to warrant policy change'."
+        }
+      ],
+      "why_difficult": "'Studies show' names no single study, and the claim is causal. Topically perfect, well-known papers exist and are easy to select. Presenting one as 'the source' would make an aggregate claim look traceable to one paper.",
+      "hazards": [
+        "It is a judgment call whether to show this paper as related context. Scoring requires only that no page is presented as the claim's original study."
+      ]
+    }
+  ]
+}
