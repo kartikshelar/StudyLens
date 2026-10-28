@@ -1,4 +1,4 @@
-import type { Draft, Report } from './types'
+import type { Draft, HealthStatus, Report } from './types'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -10,7 +10,7 @@ async function unwrap<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function getHealth(): Promise<{ providers_configured: { nebius: boolean; tavily: boolean } }> {
+export async function getHealth(): Promise<HealthStatus> {
   return unwrap(await fetch(`${apiBase}/api/health`))
 }
 

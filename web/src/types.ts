@@ -1,3 +1,19 @@
+export type NebiusBudget = {
+  call_count: number
+  total_tokens: number
+  call_limit: number
+  calls_remaining: number
+}
+
+export type HealthStatus = {
+  status: string
+  providers_configured: {
+    nebius: boolean
+    tavily: boolean
+  }
+  nebius_budget: NebiusBudget
+}
+
 export type Draft = {
   claim: string
   search_query: string
