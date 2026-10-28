@@ -16,7 +16,7 @@ StudyLens presents evidence for people to inspect. It does not assign a universa
 
 ## Build status
 
-The local web interface, API, persistence, and mocked integration tests are in place. The interface includes a clearly labeled worked example based on the published *Attention Is All You Need* abstract; it makes no model call. **Live Tavily Search and Extract calls were verified on October 27, 2026. A live Nemotron 3.5 Lightning call through Nebius Token Factory was verified on October 28, 2026.** A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
+The local web interface, API, persistence, and offline integration tests are in place. The interface includes a clearly labeled worked example based on the published *Attention Is All You Need* abstract; it makes no model call. **Live Tavily Search and Extract calls were verified on October 27, 2026. A live Nemotron 3.5 Lightning call through Nebius Token Factory was verified on October 28, 2026.** A direct live investigation on October 28 matched a Chinchilla claim to the original [arXiv paper](https://arxiv.org/abs/2203.15556), displayed an exact abstract passage, and labeled the coverage as abstract only. That single success is a smoke test, not a measured accuracy result. A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
 
 ## Run locally
 
@@ -38,9 +38,9 @@ The API disables model reasoning for structured extraction, caps each model resp
 
 ## How the services are used
 
-NVIDIA Nemotron through **Nebius Token Factory** extracts the claim, chooses a candidate source, and compares the claim to retrieved text. A vision-capable Nemotron model is intended for screenshot extraction. **Tavily Search** finds candidate research pages; **Tavily Extract** retrieves accessible source text. The API verifies that each displayed quote is present in the retrieved text. That check does not prove the source is the correct study, so the UI labels it a candidate and retains reader corrections.
+NVIDIA Nemotron through **Nebius Token Factory** extracts the claim, chooses a candidate source, and compares the claim to retrieved text. A vision-capable Nemotron model is intended for screenshot extraction. **Tavily Search** finds candidate research pages; **Tavily Extract** retrieves accessible source text for supported pages. For arXiv papers, the official arXiv metadata API supplies the abstract when available. The API verifies that each displayed quote is present in the retrieved text and asks the model whether the page is the original study. Neither check proves provenance, so the UI labels the result a candidate and retains reader corrections.
 
-Current local defaults are `nvidia/Nemotron-3_5-Lightning` for text and `nvidia/Nemotron-3.5-Super-VL` for images. Exact model availability and request format still need a live check with a hackathon account. The supported primary-source domains are listed in `backend/app/providers.py`.
+Current local defaults are `nvidia/Nemotron-3_5-Lightning` for text and `nvidia/Nemotron-3.5-Super-VL` for images. The text model's request format has been verified live; screenshot extraction with the vision model still needs a live check. The supported primary-source domains are listed in `backend/app/providers.py`.
 
 ## Scope and limitations
 

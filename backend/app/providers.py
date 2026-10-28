@@ -1,9 +1,10 @@
 import json
 import os
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
 
@@ -14,6 +15,7 @@ VISION_MODEL = "nvidia/Nemotron-3.5-Super-VL"
 NEBIUS_URL = "https://api.tokenfactory.nebius.com/v1/chat/completions"
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
 TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
 DEFAULT_NEBIUS_MAX_OUTPUT_TOKENS = 800
 DEFAULT_DAILY_NEBIUS_CALL_LIMIT = 30
 
@@ -78,6 +80,39 @@ def is_primary_host(url: str) -> bool:
     )
 
 
+def research_page_url(url: str) -> str | None:
+    """Return a supported paper URL, excluding known news and listing pages."""
+    if not is_primary_host(url):
+        return None
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    path = parsed.path.rstrip("/")
+    if host == "ar5iv.labs.arxiv.org":
+        match = re.fullmatch(r"/html/(\d{4}\.\d{4,5})(?:v\d+)?", path)
+        return f"https://arxiv.org/abs/{match.group(1)}" if match else None
+    if host == "cacm.acm.org":
+        return None
+    if host.endswith("nature.com") and path.startswith("/articles/d41586-"):
+        return None
+    if host.endswith("science.org") and path.startswith("/content/"):
+        return None
+    if host in {"arxiv.org", "www.arxiv.org"}:
+        match = re.fullmatch(r"/(?:abs|pdf)/(\d{4}\.\d{4,5})(?:v\d+)?(?:\.pdf)?", path)
+        if not match:
+            return None
+        return f"https://arxiv.org/abs/{match.group(1)}"
+    if host == "pubmed.ncbi.nlm.nih.gov" and not re.fullmatch(r"/\d+", path):
+        return None
+    if host == "pmc.ncbi.nlm.nih.gov" and not re.fullmatch(r"/articles/PMC\d+", path, re.I):
+        return None
+    if host == "openreview.net":
+        paper_id = parse_qs(parsed.query).get("id", [""])[0]
+        if path != "/forum" or not paper_id:
+            return None
+        return urlunparse(("https", host, path, "", urlencode({"id": paper_id}), ""))
+    return urlunparse((parsed.scheme, parsed.netloc, path or "/", "", "", ""))
+
+
 def _json_from_model(content: str) -> dict[str, Any]:
     cleaned = content.strip()
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.I)
@@ -122,7 +157,7 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
             )
             response.raise_for_status()
             body = response.json()
-            usage = body.get("usage", {})
+            usage = body.get("usage") or {}
             record_provider_usage(
                 "nebius",
                 model,
@@ -130,10 +165,17 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
                 int(usage.get("completion_tokens", 0)),
                 int(usage.get("total_tokens", 0)),
             )
-            content = body["choices"][0]["message"]["content"]
+            choice = body["choices"][0]
+            if choice.get("finish_reason") == "length":
+                raise ProviderError("The model response reached its output limit before completing JSON.")
+            content = choice["message"]["content"]
             if not isinstance(content, str):
                 raise ProviderError("The model returned an empty response.")
             return _json_from_model(content)
+    except httpx.TimeoutException as exc:
+        raise ProviderError("Nebius inference timed out.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise ProviderError(f"Nebius inference returned HTTP {exc.response.status_code}.") from exc
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
         raise ProviderError("Nebius inference failed. Check access and try again.") from exc
 
@@ -160,20 +202,40 @@ async def tavily_search(query: str) -> list[dict[str, str]]:
             results = response.json().get("results", [])
     except (httpx.HTTPError, ValueError) as exc:
         raise ProviderError("Source search failed. Please try again.") from exc
-    return [
-        {
-            "url": str(item.get("url", "")),
-            "title": str(item.get("title", "")),
-            "snippet": str(item.get("content", "")),
-        }
-        for item in results
-        if isinstance(item, dict) and is_primary_host(str(item.get("url", "")))
-    ]
+    candidates: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        url = research_page_url(str(item.get("url", "")))
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        candidates.append(
+            {
+                "url": url,
+                "title": str(item.get("title", "")),
+                "snippet": str(item.get("content", "")),
+            }
+        )
+    return candidates
 
 
 async def tavily_extract(url: str, query: str) -> str:
-    if not is_primary_host(url):
+    if not research_page_url(url):
         raise ProviderError("That source is outside the supported research sites.")
+    parsed = urlparse(url)
+    if parsed.hostname == "arxiv.org":
+        arxiv_id = parsed.path.removeprefix("/abs/")
+        try:
+            async with httpx.AsyncClient(timeout=25) as client:
+                response = await client.get(ARXIV_API_URL, params={"id_list": arxiv_id})
+                response.raise_for_status()
+            abstract = _parse_arxiv_atom(response.text)
+            if abstract:
+                return abstract
+        except (httpx.HTTPError, ET.ParseError):
+            pass
     key = os.getenv("TAVILY_API_KEY")
     if not key:
         raise ProviderError("Tavily access is not configured yet.")
@@ -190,4 +252,24 @@ async def tavily_extract(url: str, query: str) -> str:
         raise ProviderError("The source could not be retrieved.") from exc
     if not results:
         raise ProviderError("The source could not be retrieved.")
-    return str(results[0].get("raw_content", ""))[:20000]
+    text = str(results[0].get("raw_content", ""))[:20000]
+    if parsed.hostname == "arxiv.org" and not re.search(r"(?im)^\s*(?:#+\s*)?abstract\b", text):
+        raise ProviderError("The arXiv page did not expose its abstract text.")
+    return text
+
+
+def _parse_arxiv_atom(document: str) -> str:
+    root = ET.fromstring(document)
+    namespace = {"atom": "http://www.w3.org/2005/Atom"}
+    entry = root.find("atom:entry", namespace)
+    if entry is None:
+        return ""
+    title = " ".join((entry.findtext("atom:title", default="", namespaces=namespace)).split())
+    summary = " ".join((entry.findtext("atom:summary", default="", namespaces=namespace)).split())
+    authors = [
+        " ".join((author.findtext("atom:name", default="", namespaces=namespace)).split())
+        for author in entry.findall("atom:author", namespace)
+    ]
+    if not title or len(summary) < 200:
+        return ""
+    return f"Title: {title}\nAuthors: {', '.join(authors)}\nAbstract: {summary}"

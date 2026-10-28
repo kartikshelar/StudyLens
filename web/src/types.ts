@@ -27,12 +27,15 @@ export type Source = {
 }
 
 export type Comparison = {
+  is_original_study?: boolean
   supporting_excerpt: string
   study_tested: string
   study_found: string
   wording_gap: string
   uncertainties: string[]
   excerpt_verified: boolean
+  relation?: 'supports' | 'partly_supports' | 'contradicts' | 'does_not_address'
+  text_coverage?: 'abstract_only' | 'full_text' | 'unclear'
 }
 
 export type Report = {
@@ -47,5 +50,5 @@ export type Report = {
   comparison: Comparison | null
   selection_reason?: string
   trace: string[]
-  corrections: { at: string; previous_url: string | null; new_url: string }[]
+  corrections: { at: string; previous_url: string | null; new_url: string; accepted?: boolean; reason?: string }[]
 }

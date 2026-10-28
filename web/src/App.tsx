@@ -19,12 +19,15 @@ const exampleReport: Report = {
     snippet: 'Vaswani and colleagues, 2017',
   },
   comparison: {
+    is_original_study: true,
     supporting_excerpt: 'Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable',
     study_tested: 'Two machine translation tasks, with an additional English parsing experiment described in the abstract.',
     study_found: 'The authors reported stronger quality and greater parallelizability on the translation tasks they tested.',
     wording_gap: 'The quoted evidence concerns specific translation tasks. It does not establish superiority on every language task.',
     uncertainties: ['This short excerpt does not establish how the architecture performs on unrelated tasks.'],
     excerpt_verified: true,
+    relation: 'partly_supports',
+    text_coverage: 'abstract_only',
   },
   selection_reason: 'This is the original paper used for the worked example.',
   trace: [],
@@ -278,14 +281,16 @@ function App() {
                 {report.selected_source && report.comparison && <>
                   <div className="source-title"><span>{isExample ? 'Published paper' : 'Original research candidate'}</span><SourceLink title={report.selected_source.title} url={report.selected_source.url} /></div>
                   {report.selection_reason && <p className="selection-reason">Why this source: {report.selection_reason}</p>}
+                  {report.comparison.text_coverage === 'abstract_only' && <p className="coverage-note">Abstract only · Partial evidence</p>}
                   <div className="source-quote"><span>Passage found in the source</span><blockquote>“{report.comparison.supporting_excerpt}”</blockquote></div>
+                  <p className="model-summary-label">Model summary of the passage · Verify against the source</p>
                   <div className="comparison-grid"><div><h3>What was tested</h3><p>{report.comparison.study_tested || 'Not stated in the accessible text.'}</p></div><div><h3>What the study found</h3><p>{report.comparison.study_found || 'Not stated in the accessible text.'}</p></div><div className="wording-gap"><h3>Where the wording changes</h3><p>{report.comparison.wording_gap || 'No clear wording difference identified.'}</p></div></div>
                   {report.comparison.uncertainties.length > 0 && <div className="uncertainties"><h3>Still uncertain</h3><ul>{report.comparison.uncertainties.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
                 </>}
                 {!isExample && <>
                   {report.candidates.length > 0 && <details className="candidate-list"><summary>Inspect other research pages ({report.candidates.length})</summary><ul>{report.candidates.map((source) => <li key={source.url}><SourceLink title={source.title || source.url} url={source.url} /><p>{source.snippet}</p><button className="text-button" disabled={Boolean(sourceUpdating) || modelCallsExhausted || source.url === report.selected_source?.url} onClick={() => handleCorrection(source.url)}>{sourceUpdating === source.url ? 'Checking this source…' : source.url === report.selected_source?.url ? 'Current source' : modelCallsExhausted ? 'Model calls used for today' : 'Check this source'}</button></li>)}</ul></details>}
                   <div className="source-correction"><label htmlFor="source-url">Know the original study?</label><p className="field-help">{modelCallsExhausted ? 'No model calls remaining today, so another source cannot be checked until the daily limit resets.' : 'Add its public research URL. StudyLens will check the page text before showing it as a source.'}</p><div className="source-correction-row"><input id="source-url" type="url" placeholder="https://arxiv.org/abs/…" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /><button className="secondary-button" disabled={Boolean(sourceUpdating) || modelCallsExhausted || !sourceUrl.trim()} onClick={() => handleCorrection(sourceUrl.trim())}>{sourceUpdating === sourceUrl.trim() ? 'Checking…' : modelCallsExhausted ? 'Model calls used for today' : 'Check source'}</button></div></div>
-                  {report.corrections.length > 0 && <details className="trace-list"><summary>Source corrections ({report.corrections.length})</summary><ol>{report.corrections.map((item, index) => <li key={index}>Checked <a href={item.new_url} target="_blank" rel="noopener noreferrer">{item.new_url}</a>{item.previous_url ? ` after ${item.previous_url}` : ''}</li>)}</ol></details>}
+                  {report.corrections.length > 0 && <details className="trace-list"><summary>Source corrections ({report.corrections.length})</summary><ol>{report.corrections.map((item, index) => <li key={index}>{item.accepted === false ? 'Not confirmed' : 'Checked'} <a href={item.new_url} target="_blank" rel="noopener noreferrer">{item.new_url}</a>{item.previous_url ? ` after ${item.previous_url}` : ''}{item.accepted === false && item.reason ? ` · ${item.reason}` : ''}</li>)}</ol></details>}
                 </>}
                 <div className="report-actions">{isExample ? <button className="secondary-button" onClick={startOver}>Try your own claim</button> : <button className="secondary-button" onClick={shareReport}>{copied ? 'Link copied' : 'Copy report link'}</button>}<span>{isExample ? 'Illustrative report' : `Saved ${new Date(report.created_at).toLocaleDateString()}`}</span></div>
                 {!isExample && <details className="trace-list"><summary>How this investigation was made</summary><ol>{report.trace.map((step, index) => <li key={index}>{step}</li>)}</ol><p>Model output can be mistaken. Check the original source before sharing a conclusion.</p></details>}
