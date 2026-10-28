@@ -16,7 +16,7 @@ StudyLens presents evidence for people to inspect. It does not assign a universa
 
 ## Build status
 
-The local web interface, API, persistence, and mocked integration tests are in place. **No live Nebius or Tavily call has been verified yet.** A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
+The local web interface, API, persistence, and mocked integration tests are in place. **Live Tavily Search and Extract calls were verified on October 27, 2026. Nebius inference has not been verified yet.** A hosted demo, measured evaluation, and public repository are pending. Do not describe this project as deployed, used by others, or hackathon-submitted until those events occur.
 
 ## Run locally
 
