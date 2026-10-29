@@ -54,6 +54,14 @@ class ProviderLimitError(ProviderError):
     pass
 
 
+class RetrievedSource(str):
+    """A string-compatible source snapshot with metadata from its retrieval adapter."""
+    def __new__(cls, text: str, metadata: dict[str, str]):
+        value = super().__new__(cls, text)
+        value.metadata = metadata
+        return value
+
+
 _run_budget: ContextVar[dict[str, dict[str, int]] | None] = ContextVar("provider_run_budget", default=None)
 
 
@@ -282,10 +290,12 @@ async def _resolve_arxiv_candidates(candidates: list[dict[str, str]]) -> list[di
     direct_ids = [item["url"].rsplit("/", 1)[-1] for item in candidates
                   if urlparse(item["url"]).hostname == "arxiv.org"]
     citation_ids = []
+    citation_parents = {}
     for candidate in candidates:
         for paper_id in re.findall(r"(?:arxiv\s*:\s*|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})", candidate["snippet"], re.I):
             if paper_id not in direct_ids and paper_id not in citation_ids and len(citation_ids) < 3:
                 citation_ids.append(paper_id)
+                citation_parents[paper_id] = candidate["url"]
     ids = list(dict.fromkeys(direct_ids + citation_ids))
     if not ids:
         return candidates
@@ -305,7 +315,8 @@ async def _resolve_arxiv_candidates(candidates: list[dict[str, str]]) -> list[di
     for paper_id in citation_ids:
         url = f"https://arxiv.org/abs/{paper_id}"
         if url in records and url not in seen:
-            resolved.append({**records[url], "discovery": "arXiv citation in a search result"})
+            resolved.append({**records[url], "discovery": "arXiv citation in a search result",
+                             "discovery_parent_url": citation_parents[paper_id]})
             seen.add(url)
     return resolved
 
@@ -352,7 +363,10 @@ async def tavily_extract(url: str, query: str) -> str:
 
 def _parse_arxiv_atom(document: str) -> str:
     records = _parse_arxiv_records(document)
-    return next(iter(records.values()))["source_text"] if records else ""
+    if not records:
+        return ""
+    record = next(iter(records.values()))
+    return RetrievedSource(record["source_text"], record)
 
 
 def _parse_arxiv_records(document: str) -> dict[str, dict[str, str]]:

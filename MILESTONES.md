@@ -11,7 +11,7 @@ The objective is a useful public product and a defensible portfolio project. Sub
 
 ## Gate 1 — one real investigation
 
-- [ ] Accept a user-written research claim and let the user confirm its extracted wording. Live text extraction succeeded on October 28, 2026, and its output led to a successful Chinchilla investigation through the API; the on-screen review step still needs a hands-on check.
+- [x] Accept a user-written research claim and let the user confirm its extracted wording. Text extraction succeeded live on October 28; on October 29 UTC, the browser screenshot flow showed an editable claim/search review and produced a live saved report after the search phrase was edited.
 - [x] Search for candidate primary sources using a live service. Tavily returned Chinchilla candidates on October 28, 2026.
 - [x] Present the selected source, supporting passage, and visible reason for the match. The October 28 direct API smoke test selected arXiv:2203.15556 with an exact abstract passage. Its saved result was reviewed in the browser; the live input flow still needs review.
 - [x] Return a useful **source not confirmed** result when no defensible source is found. An October 28 live test with a deliberately invented Stanford green-tea claim found four unrelated candidates and selected none.
@@ -19,11 +19,11 @@ The objective is a useful public product and a defensible portfolio project. Sub
 
 ## Gate 2 — complete user journey
 
-- [ ] Accept a screenshot and extract the claim with a real NVIDIA model on Nebius.
+- [x] Accept a screenshot and extract the claim with a real NVIDIA model on Nebius. Nemotron 3.5 Super VL preserved the test claim in the browser flow on October 29 UTC.
 - [x] Show an evidence-first, responsive React/TypeScript interface. Saved matched and no-match reports were reviewed in the local browser at desktop and 390px widths, with keyboard order checked, on October 28, 2026. The full live input flow and hosted review remain pending.
-- [ ] Let the user correct the source and preserve the correction.
+- [x] Let the user correct the source and preserve the correction. Browser tests rejected a wrong-author paper without a model call, then corrected an earlier real wrong-source report from Chinchilla to Kaplan. The new source, prior source history, and copied report link survived reload.
 - [x] Save a report and open it from a shareable URL. Both live smoke reports reopened by local report URL during the browser review. Public hosted links remain pending.
-- [ ] Handle errors, timeouts, unsupported sources, and empty inputs clearly.
+- [ ] Handle errors, timeouts, unsupported sources, and empty inputs clearly. Image decoding/pixel limits and pause states have offline coverage; broader browser error checks remain pending.
 
 ## Gate 3 — credible quality proof
 
@@ -35,6 +35,8 @@ The objective is a useful public product and a defensible portfolio project. Sub
 The evaluation CLI now validates cases and scores saved reports offline. Explicit live runs are capped independently and save latency, attempts, returned token usage, and per-check results. The first two-case diagnostic exposed a wrong-source match for Kaplan; official metadata, citation following, and author/date exclusions recovered the original. A comparison-model change and indexed passage selection then produced two passing automated comparisons using those cached source selections, including a contradiction. Failures and scope are recorded in `evaluation/results/smoke-2026-10-29.json`. Human review, the full nine-case run, a fresh end-to-end run after the passage change, and dollar-cost measurement remain pending.
 
 Public-demo preparation includes atomic daily and total request caps for Nebius and Tavily, client throttling, and a live-research pause switch. These have offline coverage for timeouts, concurrency, restarts/day changes, and repeated HTTP requests. Hosted persistence and proxy behavior must still be verified before opening public traffic.
+
+The single-service Docker/Render Free setup and PostgreSQL adapter are prepared in `HOSTING.md`. Production rejects ephemeral SQLite, and hosted live requests require the local spending-history import. Local migration tests pass. The Docker engine was unavailable, so the image build and real PostgreSQL checks remain pending; the prepared GitHub workflow supplies those gates. No public repository or cloud deployment has been created.
 
 ## Gate 4 — submission-ready
 

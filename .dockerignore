@@ -1,0 +1,15 @@
+.git
+**/.env
+**/.env.*
+**/.venv
+**/node_modules
+**/dist
+**/.pytest_cache
+**/__pycache__
+**/.uv-cache
+**/*.db
+**/*.db-*
+**/*.sqlite3
+evaluation
+.github
+CLAUDE_REVIEW.md

@@ -343,9 +343,10 @@
           }
         ],
         "wording_gap_should_mention": [
-          "The paper recommends spending a fixed compute budget on very large models with a relatively modest amount of data, not scaling both equally.",
-          "Equal scaling is the later finding of Hoffmann et al. (2022)."
-        ]
+          "The abstract recommends very large models with a relatively modest amount of data under a fixed compute budget; it does not quantify the relative scaling rates.",
+          "The contradiction with equal scaling is a model inference from that qualitative recommendation."
+        ],
+        "scorer_context_not_required_in_report": "Equal scaling is the later finding of Hoffmann et al. (2022). This is external context and must not be required of a report limited to Kaplan's abstract."
       },
       "decoys": [
         {

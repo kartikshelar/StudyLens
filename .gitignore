@@ -12,6 +12,8 @@ dist/
 *.tsbuildinfo
 .DS_Store
 *.db
+*.db-*
 *.sqlite3
+*.sqlite3-*
 evaluation/runs/
 evaluation/saved-reports/

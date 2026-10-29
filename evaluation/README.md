@@ -116,6 +116,10 @@ These iterations used 14 Nebius attempts and 6 Tavily Search requests in total. 
 
 Raw runs are ignored by Git until reviewed. Publish a curated result with its denominator, errors, skipped cases, and human review status when ready.
 
+## Browser journey check
+
+The [October 29 UTC browser check](results/browser-smoke-2026-10-29.json) used the actual built website served by FastAPI. It verified screenshot upload with Nemotron 3.5 Super VL, editable extraction review, live research, wrong-source rejection, an accepted correction to an earlier wrong-source report, persistence after reload, and report-link copying. It used four model attempts and one Tavily search. [Browser screenshots](artifacts/) are included as local-test evidence. These are narrow workflow checks, not a measure of general source-match or summary accuracy.
+
 ## Limitations
 
 - Nine cases with hand-picked decoys. It covers known failure modes; it does not estimate real-world accuracy.

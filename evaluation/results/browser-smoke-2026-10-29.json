@@ -1,0 +1,53 @@
+{
+  "date_utc": "2026-10-29",
+  "mode": "local_browser_production_frontend",
+  "origin": "http://127.0.0.1:8100",
+  "source_database": "local SQLite",
+  "test_server_allowance": {"nebius_attempts": 6, "tavily_requests": 2},
+  "used": {"nebius_attempts": 4, "tavily_searches": 1},
+  "screenshots": {
+    "input": "../artifacts/browser-claim-input.jpg",
+    "editable_review": "../artifacts/browser-screenshot-review.jpg",
+    "screenshot_result": "../artifacts/browser-screenshot-result.jpg",
+    "corrected_report": "../artifacts/browser-source-correction.jpg",
+    "correction_history_detail": "../artifacts/browser-correction-proof.jpg"
+  },
+  "screenshot_flow": {
+    "input": "A screenshot of a public Chinchilla claim, captured from the app's text field",
+    "vision_model": "nvidia/Nemotron-3.5-Super-VL",
+    "claim_preserved": true,
+    "review_fields_editable": true,
+    "search_phrase_edited_in_browser": true,
+    "report_id": "f11c14c4-fa3e-426c-aed7-1603a469b948",
+    "selected_url": "https://arxiv.org/abs/2203.15556",
+    "status": "candidate_source",
+    "quote_method": "indexed_passages",
+    "quote_includes_setup_and_outperformance": true,
+    "coverage": "abstract_only",
+    "note": "The original tab closed after the investigation request; the completed saved result was reopened by report URL without another paid call."
+  },
+  "rejected_correction": {
+    "report_id": "f11c14c4-fa3e-426c-aed7-1603a469b948",
+    "proposed_url": "https://arxiv.org/abs/2001.08361",
+    "reason": "Official author list does not include Hoffmann, who is named in the claim.",
+    "previous_source_retained": true,
+    "history_visible_in_browser": true,
+    "new_model_calls": 0
+  },
+  "accepted_correction": {
+    "report_id": "f8ed23ba-e2fd-4284-813e-2615de7edcc4",
+    "previous_url": "https://arxiv.org/abs/2203.15556",
+    "new_url": "https://arxiv.org/abs/2001.08361",
+    "relation_after_correction": "contradicts",
+    "previous_source_and_comparison_preserved": true,
+    "history_visible_after_browser_reload": true,
+    "copy_report_link_verified": true,
+    "new_model_calls": 1,
+    "note": "This deliberately corrected an earlier real wrong-source report. Earlier evaluation files retain the original result snapshots; the saved report now includes the correction."
+  },
+  "limits": [
+    "One screenshot and two correction outcomes, not an accuracy estimate.",
+    "This was a local browser check; cloud hosting, durable PostgreSQL, and public URL checks remain pending.",
+    "Model summaries and interpretation still require human review; a verbatim quote does not prove interpretation or provenance."
+  ]
+}

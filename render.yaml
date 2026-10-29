@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: studylens
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    envVars:
+      - key: STUDYLENS_ENV
+        value: production
+      - key: STUDYLENS_WEB_DIST
+        value: /app/web/dist
+      - key: STUDYLENS_LIVE_ENABLED
+        value: "false"
+      - key: STUDYLENS_RATE_LIMIT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: NEBIUS_MAX_OUTPUT_TOKENS
+        value: "800"
+      - key: STUDYLENS_DAILY_NEBIUS_CALL_LIMIT
+        value: "30"
+      - key: STUDYLENS_TOTAL_NEBIUS_CALL_LIMIT
+        value: "60"
+      - key: STUDYLENS_DAILY_TAVILY_CALL_LIMIT
+        value: "20"
+      - key: STUDYLENS_TOTAL_TAVILY_CALL_LIMIT
+        value: "40"
+      - key: STUDYLENS_REQUESTS_PER_MINUTE
+        value: "6"
+      - key: STUDYLENS_REQUESTS_PER_HOUR
+        value: "20"

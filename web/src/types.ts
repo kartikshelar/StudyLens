@@ -12,6 +12,7 @@ export type HealthStatus = {
     tavily: boolean
   }
   nebius_budget: NebiusBudget
+  live_research_enabled?: boolean
 }
 
 export type Draft = {
@@ -26,6 +27,7 @@ export type Source = {
   snippet: string
   authors?: string
   published?: string
+  metadata_source?: string
 }
 
 export type Comparison = {
@@ -40,6 +42,9 @@ export type Comparison = {
   text_coverage?: 'abstract_only' | 'full_text' | 'unclear'
   quote_method?: 'indexed_passages' | 'model_copy' | string
   quote_selection?: number[]
+  model?: string
+  assessed_at?: string
+  source_mode?: string
 }
 
 export type Report = {
@@ -53,6 +58,8 @@ export type Report = {
   selected_source: Source | null
   comparison: Comparison | null
   selection_reason?: string
+  evaluation_mode?: string
+  reassessment_of?: string
   trace: string[]
   corrections: { at: string; previous_url: string | null; new_url: string; accepted?: boolean; reason?: string }[]
 }

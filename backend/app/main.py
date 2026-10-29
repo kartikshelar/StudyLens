@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from .providers import (
     ProviderError,
     ProviderLimitError,
+    RetrievedSource,
     COMPARE_MODEL,
     TEXT_MODEL,
     VISION_MODEL,
@@ -32,6 +33,8 @@ from .providers import (
     tavily_search,
 )
 from .store import admit_paid_request, get_report, save_report
+from .images import prepare_screenshot
+from .runtime import install_website
 
 load_dotenv()
 app = FastAPI(title="StudyLens API", version="0.1.0")
@@ -55,6 +58,12 @@ async def limit_paid_routes(request: Request, call_next):
         }
     ) or (request.method == "PUT" and path.startswith("/api/investigations/") and path.endswith("/source"))
     if paid:
+        try:
+            content_length = int(request.headers.get("content-length", "0"))
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid request length."})
+        if content_length > 5_500_000:
+            return JSONResponse(status_code=413, content={"detail": "The upload is too large. Screenshots must be smaller than 5 MB."})
         if not live_enabled():
             return JSONResponse(status_code=503, content={"detail": "Live research is paused by the project owner."})
         host = request.client.host if request.client else "unknown"
@@ -175,6 +184,7 @@ async def _compare(claim: str, source_title: str, source_text: str) -> dict[str,
         "study_tested, study_found, wording_gap, uncertainties, and text_coverage. "
         "passage_ids must be an array of one to three consecutive integer IDs from the numbered source passages "
         "where the authors state their own result most relevant to the claim, even if it contradicts the claim. "
+        "For a claim with multiple parts, include the passages giving each central result, not only the experiment setup. "
         "The server copies those passages exactly; do not rewrite or transcribe a quotation. "
         "Do not quote a title, citation, reference list, or description of another study. "
         "Use [] if this is not the original study or the result is absent. "
@@ -184,6 +194,9 @@ async def _compare(claim: str, source_title: str, source_text: str) -> dict[str,
         "Use partly_supports for a narrower supported result, and does_not_address when the result is absent. "
         "Summaries must use only details in the source, each under 40 words. "
         "study_tested describes the experiment or analysis; study_found describes its result, not a paper title or citation. "
+        "For wording_gap, compare conditions and scope explicitly: compute budget, population, task, measurement, and qualifiers. "
+        "Describe source conditions omitted by the claim. Do not treat a missing condition as an unconditional supported result. "
+        "If the abstract is qualitative, label conclusions about scaling rates or causal effects as inferences rather than explicit findings. "
         "uncertainties is an array of up to three limitations stated by the source, or []. "
         "text_coverage is abstract_only, full_text, or unclear. "
         "Do not invent sample sizes, numerical results, causal effects, or general caveats."
@@ -233,6 +246,8 @@ async def _compare(claim: str, source_title: str, source_text: str) -> dict[str,
         "excerpt_verified": supported_quote,
         "quote_method": quote_method,
         "quote_selection": result.get("passage_ids"),
+        "model": COMPARE_MODEL,
+        "assessed_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -247,6 +262,13 @@ async def _assess_candidate(report: dict[str, Any], candidate: dict[str, str]) -
         source_text = candidate.get("source_text") if candidate.get("metadata_source") == "arxiv_api" else None
         if not source_text:
             source_text = await tavily_extract(candidate["url"], report["claim"])
+            if isinstance(source_text, RetrievedSource):
+                candidate.update(source_text.metadata)
+                conflict = _identity_conflict(report["claim"], candidate)
+                if conflict:
+                    report.update(status="source_not_confirmed", message=conflict, selected_source=None, comparison=None)
+                    report["trace"].append(f"Source metadata conflict: {conflict}")
+                    return
         if len(source_text.strip()) < 400:
             raise ProviderError("The source has too little accessible text to inspect.")
         comparison = await _compare(report["claim"], candidate["title"], source_text)
@@ -286,6 +308,13 @@ async def _assess_candidate(report: dict[str, Any], candidate: dict[str, str]) -
         comparison["text_coverage"] = "abstract_only"
     report["selected_source"] = candidate
     report["comparison"] = comparison
+    comparison["source_mode"] = "stored_official_abstract" if candidate.get("metadata_source") == "arxiv_api" else "retrieved_page"
+
+
+@app.get("/healthz")
+def liveness() -> dict[str, str]:
+    # Host liveness checks must not keep a metered database active while idle.
+    return {"status": "ok"}
 
 
 @app.get("/api/health")
@@ -333,6 +362,10 @@ async def extract_image(image: UploadFile = File(...)) -> dict[str, str]:
     data = await image.read(5_000_001)
     if len(data) > 5_000_000:
         raise HTTPException(status_code=413, detail="Screenshots must be smaller than 5 MB.")
+    try:
+        data = prepare_screenshot(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     encoded = base64.b64encode(data).decode("ascii")
     try:
         result = await nemotron_json(
@@ -351,7 +384,7 @@ async def extract_image(image: UploadFile = File(...)) -> dict[str, str]:
                         {"type": "text", "text": "What research claim is visible?"},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:{image.content_type};base64,{encoded}"},
+                            "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
                         },
                     ],
                 },
@@ -398,6 +431,9 @@ async def create_investigation(payload: InvestigationInput) -> dict[str, Any]:
             discovered = [candidate["url"] for candidate in candidates if candidate.get("discovery")]
             if discovered:
                 report["trace"].append(f"Resolved cited papers through official arXiv metadata: {', '.join(discovered)}")
+                for candidate in candidates:
+                    if candidate.get("discovery_parent_url"):
+                        report["trace"].append(f"Citation discovery: {candidate['url']} cited by {candidate['discovery_parent_url']}")
             if len(exclusions) == len(candidates):
                 report["message"] = "The retrieved papers conflict with the claim's named author or study date. The original source is not confirmed."
                 save_report(report)
@@ -530,3 +566,7 @@ async def correct_source(report_id: str, payload: SourceCorrection) -> dict[str,
     )
     save_report(report)
     return report
+
+
+# Register the built website after every API route; development can keep using Vite.
+install_website(app)

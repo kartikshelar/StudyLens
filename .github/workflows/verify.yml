@@ -1,0 +1,52 @@
+name: Verify app and deployment image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: studylens
+          POSTGRES_PASSWORD: studylens_ci_only
+          POSTGRES_DB: studylens_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studylens -d studylens_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Disposable CI service credentials; no application provider keys are used.
+      STUDYLENS_TEST_POSTGRES_URL: postgresql://studylens:studylens_ci_only@127.0.0.1:5432/studylens_test
+      STUDYLENS_ENV: development
+      STUDYLENS_LIVE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+      - name: Install pinned package managers
+        run: |
+          python -m pip install uv==0.12.2
+          npm install --global pnpm@10.34.9
+      - name: Backend and real PostgreSQL checks
+        working-directory: backend
+        run: |
+          uv sync --frozen --extra dev --python 3.12
+          uv run pytest -q
+          uv run python -m app.evaluate
+      - name: Build website from the lockfile
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Build production image without credentials
+        run: docker build --tag studylens:verification .

@@ -3,7 +3,7 @@ import { correctSource, extractImage, extractText, getHealth, getReport, investi
 import type { Comparison, Draft, HealthStatus, NebiusBudget, Report } from './types'
 
 type Stage = 'input' | 'extracting' | 'review' | 'investigating' | 'result'
-type ServiceState = 'checking' | 'ready' | 'nebius_missing' | 'tavily_missing' | 'both_missing' | 'unavailable'
+type ServiceState = 'checking' | 'ready' | 'paused' | 'nebius_missing' | 'tavily_missing' | 'both_missing' | 'unavailable'
 
 const exampleReport: Report = {
   id: 'example',
@@ -35,6 +35,7 @@ const exampleReport: Report = {
 }
 
 function serviceStateFrom(health: HealthStatus): ServiceState {
+  if (health.live_research_enabled === false) return 'paused'
   const { nebius, tavily } = health.providers_configured
   if (nebius && tavily) return 'ready'
   if (!nebius && !tavily) return 'both_missing'
@@ -80,6 +81,7 @@ function findingParts(message: string): { lead: string; reason: string } {
 }
 
 function serviceLabel(state: ServiceState, exhausted: boolean): string {
+  if (state === 'paused') return 'Live research paused'
   if (state === 'ready' && exhausted) return 'Model call limit reached'
   if (state === 'ready') return 'Live research ready'
   if (state === 'checking') return 'Checking research service'
@@ -105,6 +107,7 @@ function App() {
   const [serviceState, setServiceState] = useState<ServiceState>('checking')
   const [budget, setBudget] = useState<NebiusBudget | null>(null)
   const modelCallsExhausted = budget !== null && budget.calls_remaining <= 0
+  const liveUnavailable = serviceState !== 'ready' || modelCallsExhausted
   const [isExample, setIsExample] = useState(false)
   const [copied, setCopied] = useState(false)
   const [sourceUpdating, setSourceUpdating] = useState('')
@@ -149,7 +152,7 @@ function App() {
   }, [imageFile])
 
   async function handleExtract() {
-    if (modelCallsExhausted) return
+    if (liveUnavailable) return
     setError('')
     setStage('extracting')
     try {
@@ -165,7 +168,7 @@ function App() {
   }
 
   async function handleInvestigate() {
-    if (!draft || modelCallsExhausted) return
+    if (!draft || liveUnavailable) return
     setError('')
     setStage('investigating')
     try {
@@ -183,7 +186,7 @@ function App() {
   }
 
   async function handleCorrection(url: string) {
-    if (!report || modelCallsExhausted) return
+    if (!report || liveUnavailable) return
     setSourceUpdating(url)
     setError('')
     try {
@@ -239,7 +242,7 @@ function App() {
           <button className="topbar-example" onClick={showExample}>View an example</button>
           <div className="model-status">
             <span className={`service-pill ${serviceState === 'ready' && modelCallsExhausted ? 'exhausted' : serviceState}`}>{serviceLabel(serviceState, modelCallsExhausted)}</span>
-            {budget && <p className={`budget-note${modelCallsExhausted ? ' exhausted' : ''}`} aria-live="polite">{budgetLabel(budget.calls_remaining)}</p>}
+            {budget && serviceState !== 'paused' && <p className={`budget-note${modelCallsExhausted ? ' exhausted' : ''}`} aria-live="polite">{budgetLabel(budget.calls_remaining)}</p>}
           </div>
         </div>
       </header>
@@ -259,7 +262,7 @@ function App() {
           </div>
         </section>
 
-        {serviceState !== 'ready' && serviceState !== 'checking' && <div className="setup-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>{serviceState === 'unavailable' ? 'The research service is offline. The worked example is still available.' : serviceState === 'nebius_missing' ? 'Live investigations are waiting for Nebius model access. You can explore the worked example now.' : serviceState === 'tavily_missing' ? 'Live investigations are waiting for source search access. You can explore the worked example now.' : 'Live investigations are being connected. You can explore the worked example now.'}</span></div>}
+        {serviceState !== 'ready' && serviceState !== 'checking' && <div className="setup-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>{serviceState === 'paused' ? 'Live research is paused. Saved reports and the worked example remain available.' : serviceState === 'unavailable' ? 'The research service is offline. The worked example is still available.' : serviceState === 'nebius_missing' ? 'Live investigations are waiting for Nebius model access. You can explore the worked example now.' : serviceState === 'tavily_missing' ? 'Live investigations are waiting for source search access. You can explore the worked example now.' : 'Live investigations are being connected. You can explore the worked example now.'}</span></div>}
         {modelCallsExhausted && <div className="setup-notice budget-exhausted-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>A project model call limit has been reached. Live investigations are paused. The worked example is still available.</span></div>}
         {error && <div className="error-notice" role="alert">{error}</div>}
 
@@ -278,13 +281,13 @@ function App() {
                 <textarea id="claim-edit" rows={5} value={draft?.claim || ''} onChange={(event) => setDraft((current) => current ? { ...current, claim: event.target.value } : current)} disabled={stage === 'investigating'} />
                 <label htmlFor="search-edit">Search phrase</label>
                 <input id="search-edit" value={draft?.search_query || ''} onChange={(event) => setDraft((current) => current ? { ...current, search_query: event.target.value } : current)} disabled={stage === 'investigating'} />
-                <div className="action-row"><button className="primary-button" onClick={handleInvestigate} disabled={stage === 'investigating' || modelCallsExhausted || (draft?.claim.length || 0) < 15 || (draft?.search_query.length || 0) < 5}>{stage === 'investigating' ? 'Tracing the source…' : modelCallsExhausted ? 'Model calls used for today' : 'Trace this claim'}</button><button className="secondary-button" onClick={startOver} disabled={stage === 'investigating'}>Start over</button></div>
+                <div className="action-row"><button className="primary-button" onClick={handleInvestigate} disabled={stage === 'investigating' || liveUnavailable || (draft?.claim.length || 0) < 15 || (draft?.search_query.length || 0) < 5}>{stage === 'investigating' ? 'Tracing the source…' : modelCallsExhausted ? 'Call limit reached' : 'Trace this claim'}</button><button className="secondary-button" onClick={startOver} disabled={stage === 'investigating'}>Start over</button></div>
               </div>
             ) : (
               <div className="entry-fields">
                 <div className="mode-switch" role="group" aria-label="Input type"><button className={mode === 'text' ? 'selected' : ''} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>Paste text</button><button className={mode === 'image' ? 'selected' : ''} aria-pressed={mode === 'image'} onClick={() => setMode('image')}>Upload screenshot</button></div>
                 {mode === 'text' ? <><label htmlFor="claim-input">Claim or passage</label><textarea id="claim-input" rows={7} placeholder="Paste a claim about a scientific or technical study…" value={inputText} onChange={(event) => setInputText(event.target.value)} /><p className="field-help">Include the original wording, especially numbers or qualifiers.</p></> : <><label htmlFor="screenshot-input">Screenshot</label><input id="screenshot-input" className="file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] || null)} /><p className="field-help">PNG, JPEG, or WebP, up to 5 MB. Use a public post without personal information.</p>{imagePreview && <img className="image-preview" src={imagePreview} alt="Screenshot to investigate" />}</>}
-                <button className="primary-button" onClick={handleExtract} disabled={stage === 'extracting' || modelCallsExhausted || (mode === 'text' ? inputText.trim().length < 20 : !imageFile)}>{stage === 'extracting' ? 'Reading the claim…' : modelCallsExhausted ? 'Model calls used for today' : 'Find the research claim'}</button>
+                <button className="primary-button" onClick={handleExtract} disabled={stage === 'extracting' || liveUnavailable || (mode === 'text' ? inputText.trim().length < 20 : !imageFile)}>{stage === 'extracting' ? 'Reading the claim…' : modelCallsExhausted ? 'Call limit reached' : 'Find the research claim'}</button>
               </div>
             )}
           </section>
@@ -297,20 +300,21 @@ function App() {
                 <div className={`finding-status ${report.status}`}><span className="status-symbol" aria-hidden="true">{report.status === 'candidate_source' ? '↗' : '?'}</span><div><strong>{isExample ? 'Published source in this example' : report.status === 'candidate_source' ? 'Candidate match' : 'Source not confirmed'}</strong><p>{findingParts(report.message).lead}</p>{findingParts(report.message).reason && <p className="finding-reason">{findingParts(report.message).reason}</p>}{!isExample && report.status === 'candidate_source' && <p className="finding-reason">The source identity is still a candidate. Open the paper and check the match yourself.</p>}</div></div>
                 {report.selected_source && report.comparison && <>
                   <div className="source-title"><span>{isExample ? 'Published paper in this example' : 'Candidate match'}</span><SourceLink title={report.selected_source.title} url={report.selected_source.url} />{(report.selected_source.authors || report.selected_source.published) && <p className="source-meta">{[report.selected_source.published, report.selected_source.authors].filter(Boolean).join(' · ')}</p>}</div>
-                  {report.selection_reason && <p className="selection-reason">Why this source: {report.selection_reason}</p>}
+                  {report.evaluation_mode === 'cached_source_reassessment' && <p className="coverage-note">Comparison replay: this report reused a saved abstract and earlier source selection. The search steps in its trace belong to the earlier investigation.</p>}
+                  {report.selection_reason && <p className="selection-reason">{report.selected_source.metadata_source === 'arxiv_api' ? 'Source record' : 'Source selection'}: {report.selection_reason}</p>}
                   <div className="source-quote"><span>{report.comparison.quote_method === 'indexed_passages' ? 'Copied from the source passages' : 'Passage found in the source'}</span>{report.comparison.quote_method === 'indexed_passages' && <p className="quote-provenance">These sentences were copied from the retrieved text. The model selected the passages and did not rewrite the quotation.</p>}{report.comparison.text_coverage === 'abstract_only' && <p className="coverage-note">Abstract only. This is partial evidence: the passage and the assessment below use the abstract, not the full paper.</p>}<blockquote>“{report.comparison.supporting_excerpt}”</blockquote></div>
                   {relationLabel(report.comparison.relation) && <div className={`relation-note ${report.comparison.relation}`}><span>Model assessment of the claim</span><strong>{relationLabel(report.comparison.relation)}</strong><p>The model compared the claim with the accessible source text. Supports, partly supports, and contradicts are that reading, not a verdict.</p></div>}
-                  <p className="model-summary-label">Model summary of the passage, not a quotation. Check it against the passage above.</p>
-                  <div className="comparison-grid"><div><h3>What was tested</h3><p>{report.comparison.study_tested || 'Not stated in the accessible text.'}</p></div><div><h3>What the study found</h3><p>{report.comparison.study_found || 'Not stated in the accessible text.'}</p></div>{report.comparison.wording_gap && <div className="wording-gap"><h3>Where the wording changes</h3><p>{report.comparison.wording_gap}</p></div>}</div>
+                  <p className="model-summary-label">Model summary of the retrieved text, not a quotation. Check it against the source, including any conditions beyond the displayed passage.</p>
+                  <div className="comparison-grid"><div><h3>What was tested</h3><p>{report.comparison.study_tested || 'Not stated in the accessible text.'}</p></div><div><h3>What the study found</h3><p>{report.comparison.study_found || 'Not stated in the accessible text.'}</p></div><div className="wording-gap"><h3>Where the wording changes</h3><p>{report.comparison.wording_gap || 'The model did not provide a wording comparison. Check the source conditions and scope before relying on the claim.'}</p></div></div>
                   {report.comparison.uncertainties.length > 0 && <div className="uncertainties"><h3>Still uncertain</h3><ul>{report.comparison.uncertainties.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
                 </>}
                 {!isExample && <>
-                  {report.candidates.length > 0 && <details className="candidate-list"><summary>Inspect other research pages ({report.candidates.length})</summary><ul>{report.candidates.map((source) => { const snippetOpen = Boolean(openSnippets[source.url]); const longSnippet = source.snippet.length > 240; return <li key={source.url}><SourceLink title={source.title || source.url} url={source.url} /><p className={longSnippet && !snippetOpen ? 'candidate-snippet clamped' : 'candidate-snippet'}>{source.snippet}</p>{longSnippet && <button type="button" className="text-button snippet-toggle" onClick={() => setOpenSnippets((current) => ({ ...current, [source.url]: !snippetOpen }))}>{snippetOpen ? 'Show less of this excerpt' : 'Show the rest of this excerpt'}</button>}<button className="text-button" disabled={Boolean(sourceUpdating) || modelCallsExhausted || source.url === report.selected_source?.url} onClick={() => handleCorrection(source.url)}>{sourceUpdating === source.url ? 'Checking this source…' : source.url === report.selected_source?.url ? 'Current source' : modelCallsExhausted ? 'Model calls used for today' : 'Check this source'}</button></li> })}</ul></details>}
-                  <div className="source-correction"><label htmlFor="source-url">Know the original study?</label><p className="field-help">{modelCallsExhausted ? 'No model calls remaining today, so another source cannot be checked until the daily limit resets.' : 'Add its public research URL. StudyLens will check the page text before showing it as a source.'}</p><div className="source-correction-row"><input id="source-url" type="url" placeholder="https://arxiv.org/abs/…" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /><button className="secondary-button" disabled={Boolean(sourceUpdating) || modelCallsExhausted || !sourceUrl.trim()} onClick={() => handleCorrection(sourceUrl.trim())}>{sourceUpdating && sourceUpdating === sourceUrl.trim() ? 'Checking…' : modelCallsExhausted ? 'Model calls used for today' : 'Check source'}</button></div></div>
+                  {report.candidates.length > 0 && <details className="candidate-list"><summary>Inspect other research pages ({report.candidates.length})</summary><ul>{report.candidates.map((source) => { const snippetOpen = Boolean(openSnippets[source.url]); const longSnippet = source.snippet.length > 240; return <li key={source.url}><SourceLink title={source.title || source.url} url={source.url} /><p className={longSnippet && !snippetOpen ? 'candidate-snippet clamped' : 'candidate-snippet'}>{source.snippet}</p>{longSnippet && <button type="button" className="text-button snippet-toggle" onClick={() => setOpenSnippets((current) => ({ ...current, [source.url]: !snippetOpen }))}>{snippetOpen ? 'Show less of this excerpt' : 'Show the rest of this excerpt'}</button>}<button className="text-button" disabled={Boolean(sourceUpdating) || liveUnavailable || source.url === report.selected_source?.url} onClick={() => handleCorrection(source.url)}>{sourceUpdating === source.url ? 'Checking this source…' : source.url === report.selected_source?.url ? 'Current source' : modelCallsExhausted ? 'Call limit reached' : 'Check this source'}</button></li> })}</ul></details>}
+                  <div className="source-correction"><label htmlFor="source-url">Know the original study?</label><p className="field-help">{liveUnavailable ? 'Live source checks are unavailable. You can still inspect this saved report.' : 'Add its public research URL. StudyLens will check the page text before showing it as a source.'}</p><div className="source-correction-row"><input id="source-url" type="url" placeholder="https://arxiv.org/abs/…" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /><button className="secondary-button" disabled={Boolean(sourceUpdating) || liveUnavailable || !sourceUrl.trim()} onClick={() => handleCorrection(sourceUrl.trim())}>{sourceUpdating && sourceUpdating === sourceUrl.trim() ? 'Checking…' : modelCallsExhausted ? 'Call limit reached' : 'Check source'}</button></div></div>
                   {report.corrections.length > 0 && <details className="trace-list"><summary>Source corrections ({report.corrections.length})</summary><ol>{report.corrections.map((item, index) => <li key={index}>{item.accepted === false ? 'Not confirmed' : 'Checked'} <a href={item.new_url} target="_blank" rel="noopener noreferrer">{item.new_url}</a>{item.previous_url ? ` after ${item.previous_url}` : ''}{item.accepted === false && item.reason ? ` · ${item.reason}` : ''}</li>)}</ol></details>}
                 </>}
                 <div className="report-actions">{isExample ? <button className="secondary-button" onClick={startOver}>Try your own claim</button> : <button className="secondary-button" onClick={shareReport}>{copied ? 'Link copied' : 'Copy report link'}</button>}<span>{isExample ? 'Illustrative report' : `Saved ${new Date(report.created_at).toLocaleDateString()}`}</span></div>
-                {!isExample && <details className="trace-list"><summary>How this investigation was made</summary><ol>{report.trace.map((step, index) => <li key={index}>{step}</li>)}</ol><p>Model output can be mistaken. Check the original source before sharing a conclusion.</p></details>}
+                {!isExample && <details className="trace-list"><summary>How this investigation was made</summary>{report.comparison?.model && <p>Displayed comparison: {report.comparison.model}{report.comparison.assessed_at ? ` · ${new Date(report.comparison.assessed_at).toLocaleString()}` : ''}</p>}<ol>{report.trace.map((step, index) => <li key={index}>{step}</li>)}</ol><p>Model output can be mistaken. Check the original source before sharing a conclusion.</p></details>}
               </div>
             ) : (
               <div className="empty-evidence">

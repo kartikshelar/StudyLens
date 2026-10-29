@@ -30,6 +30,7 @@ async def test_search_follows_explicit_citations_with_a_bounded_free_metadata_re
     assert resolved[0]["title"] == "Training Compute-Optimal Large Language Models"
     assert resolved[1]["authors"] == "Jared Kaplan"
     assert resolved[1]["discovery"] == "arXiv citation in a search result"
+    assert resolved[1]["discovery_parent_url"] == candidates[0]["url"]
     assert "Abstract:" in resolved[1]["source_text"]
 
 
@@ -95,3 +96,24 @@ async def test_named_original_can_be_selected_and_shown_as_contradicting(tmp_pat
     assert report["selected_source"]["url"] == source["url"]
     assert "Official arXiv record" in report["selection_reason"]
     assert any("Unverified model selection rationale" in item for item in report["trace"])
+
+
+@pytest.mark.asyncio
+async def test_reader_added_arxiv_source_gets_identity_checks_before_a_paid_comparison(monkeypatch):
+    metadata = {"url": "https://arxiv.org/abs/2001.08361", "title": "Scaling Laws", "metadata_source": "arxiv_api",
+                "published": "2020-01-23", "authors": "Jared Kaplan", "source_text": "A source abstract. " * 30}
+
+    async def extract(*_args):
+        return providers.RetrievedSource(metadata["source_text"], metadata)
+
+    async def forbidden(*_args, **_kwargs):
+        raise AssertionError("An author conflict must be rejected before a paid model request")
+
+    monkeypatch.setattr(main, "tavily_extract", extract)
+    monkeypatch.setattr(main, "nemotron_json", forbidden)
+    report = {"claim": "Hoffmann and colleagues' 2022 study found a research result.", "trace": []}
+    candidate = {"url": metadata["url"], "title": "arxiv.org", "snippet": "Reader supplied"}
+    await main._assess_candidate(report, candidate)
+    assert report["status"] == "source_not_confirmed"
+    assert "Hoffmann" in report["message"]
+    assert candidate["authors"] == "Jared Kaplan"

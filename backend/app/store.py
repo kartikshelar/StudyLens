@@ -1,21 +1,76 @@
 import json
 import os
 import sqlite3
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import psycopg
+from psycopg.rows import dict_row
+
+
+_schema_lock = threading.Lock()
+_initialized_postgres: set[str] = set()
+_WRITE_LOCK = 20261028
+
+
+class DatabaseConnection:
+    def __init__(self, raw, postgres: bool):
+        self.raw = raw
+        self.postgres = postgres
+
+    def execute(self, statement: str, parameters=()):
+        if self.postgres:
+            statement = statement.replace("?", "%s")
+        return self.raw.execute(statement, parameters)
+
+    def begin_write(self) -> None:
+        if self.postgres:
+            self.execute("SELECT pg_advisory_xact_lock(?)", (_WRITE_LOCK,))
+        else:
+            self.execute("BEGIN IMMEDIATE")
+
+    def close(self):
+        self.raw.close()
 
 
 def _db_path() -> Path:
     return Path(os.getenv("STUDYLENS_DB_PATH", "studylens.db"))
 
 
-def _connect() -> sqlite3.Connection:
+def _connect() -> DatabaseConnection:
+    url = os.getenv("DATABASE_URL", "").strip()
+    if url:
+        if not url.startswith(("postgresql://", "postgres://")):
+            raise RuntimeError("DATABASE_URL must be a PostgreSQL connection URL.")
+        # A configured remote database failure must never fall back to empty SQLite.
+        options = {"sslmode": "require"} if os.getenv("STUDYLENS_ENV") == "production" else {}
+        raw = psycopg.connect(url, row_factory=dict_row, connect_timeout=10, **options)
+        connection = DatabaseConnection(raw, postgres=True)
+        try:
+            with _schema_lock:
+                if url not in _initialized_postgres:
+                    connection.begin_write()
+                    _create_schema(connection)
+                    raw.commit()
+                    _initialized_postgres.add(url)
+        except Exception:
+            connection.close()
+            raise
+        return connection
     path = _db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
-    connection.row_factory = sqlite3.Row
+    raw = sqlite3.connect(path)
+    raw.row_factory = sqlite3.Row
+    connection = DatabaseConnection(raw, postgres=False)
+    _create_schema(connection)
+    return connection
+
+
+def _create_schema(connection: DatabaseConnection) -> None:
+    id_column = "BIGSERIAL PRIMARY KEY" if connection.postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
     connection.execute(
         """CREATE TABLE IF NOT EXISTS investigations (
             id TEXT PRIMARY KEY,
@@ -24,8 +79,8 @@ def _connect() -> sqlite3.Connection:
         )"""
     )
     connection.execute(
-        """CREATE TABLE IF NOT EXISTS provider_usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS provider_usage (
+            id {id_column},
             created_at TEXT NOT NULL,
             provider TEXT NOT NULL,
             model TEXT NOT NULL,
@@ -35,8 +90,8 @@ def _connect() -> sqlite3.Connection:
         )"""
     )
     connection.execute(
-        """CREATE TABLE IF NOT EXISTS provider_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS provider_attempts (
+            id {id_column},
             created_at TEXT NOT NULL,
             provider TEXT NOT NULL,
             operation TEXT NOT NULL,
@@ -52,15 +107,18 @@ def _connect() -> sqlite3.Connection:
             PRIMARY KEY(client_key, window_seconds, window_start)
         )"""
     )
-    return connection
+    connection.execute("CREATE TABLE IF NOT EXISTS runtime_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
 
 
 @contextmanager
 def _database():
     connection = _connect()
     try:
-        with connection:
-            yield connection
+        yield connection
+        connection.raw.commit()
+    except Exception:
+        connection.raw.rollback()
+        raise
     finally:
         connection.close()
 
@@ -69,7 +127,7 @@ class QuotaExceeded(Exception):
     pass
 
 
-def _attempt_count(connection: sqlite3.Connection, provider: str, since: str) -> int:
+def _attempt_count(connection: DatabaseConnection, provider: str, since: str) -> int:
     # Old successful calls have no attempt row. Keep counting them after upgrade.
     row = connection.execute(
         """SELECT
@@ -96,23 +154,27 @@ def reserve_provider_attempt(provider: str, operation: str, daily_limit: int, to
     day_start = now.strftime("%Y-%m-%dT00:00:00+00:00")
     with _database() as connection:
         # Check and reserve under one write lock, including across server workers.
-        connection.execute("BEGIN IMMEDIATE")
+        connection.begin_write()
+        if connection.postgres:
+            ready = connection.execute("SELECT value FROM runtime_state WHERE key = ?", ("ledger_seeded",)).fetchone()
+            if ready is None or ready["value"] != "true":
+                raise QuotaExceeded("Import the existing spending history before using paid providers with PostgreSQL.")
         if _attempt_count(connection, provider, day_start) >= daily_limit:
             raise QuotaExceeded(f"The daily {provider.title()} request limit has been reached.")
         if _attempt_count(connection, provider, "") >= total_limit:
             raise QuotaExceeded(f"The total {provider.title()} request limit has been reached.")
         cursor = connection.execute(
-            "INSERT INTO provider_attempts(created_at, provider, operation) VALUES (?, ?, ?)",
+            "INSERT INTO provider_attempts(created_at, provider, operation) VALUES (?, ?, ?) RETURNING id",
             (now.isoformat(), provider, operation),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.fetchone()["id"])
 
 
 def admit_paid_request(client_key: str, now: int, per_minute: int, per_hour: int) -> int:
     """Return retry seconds if blocked; otherwise consume one HTTP request slot."""
     windows = [(60, per_minute), (3600, per_hour)]
     with _database() as connection:
-        connection.execute("BEGIN IMMEDIATE")
+        connection.begin_write()
         retry_after = 0
         for seconds, limit in windows:
             start = now // seconds * seconds
@@ -128,7 +190,7 @@ def admit_paid_request(client_key: str, now: int, per_minute: int, per_hour: int
             connection.execute(
                 """INSERT INTO request_windows VALUES (?, ?, ?, 1)
                    ON CONFLICT(client_key, window_seconds, window_start)
-                   DO UPDATE SET count = count + 1""",
+                   DO UPDATE SET count = request_windows.count + 1""",
                 (client_key, seconds, now // seconds * seconds),
             )
         connection.execute("DELETE FROM request_windows WHERE window_start < ?", (now - 7200,))
@@ -167,7 +229,7 @@ def record_provider_usage(
             """INSERT INTO provider_usage(
                    created_at, provider, model, prompt_tokens,
                    completion_tokens, total_tokens
-               ) VALUES (?, ?, ?, ?, ?, ?)""",
+               ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id""",
             (
                 datetime.now(timezone.utc).isoformat(),
                 provider,
@@ -177,10 +239,11 @@ def record_provider_usage(
                 max(0, total_tokens),
             ),
         )
+        usage_id = cursor.fetchone()["id"]
         if attempt_id is not None:
             connection.execute(
                 "UPDATE provider_attempts SET usage_id = ? WHERE id = ? AND provider = ?",
-                (cursor.lastrowid, attempt_id, provider),
+                (usage_id, attempt_id, provider),
             )
 
 
@@ -196,3 +259,9 @@ def provider_usage_since(provider: str, since: str) -> dict[str, int]:
             (provider, since),
         ).fetchone()
     return {key: int(row[key]) for key in row.keys()}
+
+
+def hosted_ledger_ready() -> bool:
+    with _database() as connection:
+        row = connection.execute("SELECT value FROM runtime_state WHERE key = ?", ("ledger_seeded",)).fetchone()
+    return row is not None and row["value"] == "true"
