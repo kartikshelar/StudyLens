@@ -1,0 +1,36 @@
+{
+  "scope": "Actual Neon PostgreSQL service, paused local application, no AI provider requests",
+  "neon_cli": {
+    "version": "8.13.2",
+    "runner": "pnpm dlx",
+    "linked_branch": "production",
+    "services": ["postgres"],
+    "deploy_output": ["No changes — branch production already matches the policy.", "Utilized services: Postgres"]
+  },
+  "migration": {"investigations": 13, "provider_usage": 27, "provider_attempts": 25, "sqlite_backup_retained": true},
+  "database_verification": {
+    "database_engine": "postgresql",
+    "tls_required": true,
+    "write_read_update": "passed",
+    "atomic_quota": {"accepted": 2, "blocked": 6},
+    "sequence_continuity": "passed",
+    "usage_not_double_counted": "passed",
+    "disposable_rows_removed": true,
+    "existing_records_preserved": {"investigations": 13, "provider_usage": 27, "provider_attempts": 25},
+    "real_provider_attempts_unchanged": {"nebius": 27, "tavily": 7},
+    "paid_provider_calls": 0
+  },
+  "build": {"command": "npm run build", "runner": "pnpm dlx npm@12.2.1", "exit_code": 0, "output": "tsc -b && vite build; 30 modules transformed; built in 2.20s; Python compilation completed"},
+  "regression": {"command": "uv run python -m pytest -q --tb=short", "exit_code": 0, "output": "51 passed, 3 skipped in 5.79s", "skipped": "Three PostgreSQL tests require a disposable localhost/studylens_test service; actual Neon was checked separately."},
+  "startup": {"command": "npm start", "output": "Application startup complete. Uvicorn running on http://127.0.0.1:8000", "health_status": "ok", "database_engine": "postgresql", "live_research_enabled": false},
+  "browser": {
+    "report_id": "f8ed23ba-e2fd-4284-813e-2615de7edcc4",
+    "selected_source": "https://arxiv.org/abs/2001.08361",
+    "assessment": "contradicts",
+    "correction_count": 1,
+    "previous_source": "https://arxiv.org/abs/2203.15556",
+    "live_research_paused_visible": true
+  },
+  "resolved_failure": "Windows-generated uvicorn/pytest entrypoints failed to canonicalize their paths; using python -m uvicorn and python -m pytest succeeded.",
+  "pending": ["GitHub publication and CI", "Docker image build", "Render billing checks and paused deployment", "Render restart/persistence and proxy checks"]
+}

@@ -36,7 +36,7 @@ The evaluation CLI now validates cases and scores saved reports offline. Explici
 
 Public-demo preparation includes atomic daily and total request caps for Nebius and Tavily, client throttling, and a live-research pause switch. These have offline coverage for timeouts, concurrency, restarts/day changes, and repeated HTTP requests. Hosted persistence and proxy behavior must still be verified before opening public traffic.
 
-The single-service Docker/Render Free setup and PostgreSQL adapter are prepared in `HOSTING.md`. Production rejects ephemeral SQLite, and hosted live requests require the local spending-history import. Local migration tests pass. The Docker engine was unavailable, so the image build and real PostgreSQL checks remain pending; the prepared GitHub workflow supplies those gates. No public repository or cloud deployment has been created.
+The single-service Docker/Render Free setup and PostgreSQL adapter are prepared in `HOSTING.md`. Neon Free is now connected: 13 reports, 27 usage records, and 25 attempt records were imported, preserving lifetime counters of 27 Nebius and 7 Tavily requests. Actual Neon write/read/update, concurrent quota, sequence, and cleanup checks passed with zero paid provider calls. A migrated report and correction history opened through the locally running app. Research remains paused. Production rejects ephemeral SQLite, and hosted live requests require the spending-history import. The Docker engine was unavailable, so the image build and three disposable-local-PostgreSQL tests remain pending; the prepared GitHub workflow supplies those gates. No public repository or Render website has been deployed.
 
 ## Gate 4 — submission-ready
 

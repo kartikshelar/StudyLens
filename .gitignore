@@ -17,3 +17,4 @@ dist/
 *.sqlite3-*
 evaluation/runs/
 evaluation/saved-reports/
+.neon

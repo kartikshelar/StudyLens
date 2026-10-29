@@ -1,6 +1,6 @@
 # Hosting preparation
 
-The prepared target is **one Render Free web service plus Neon Free PostgreSQL**. The same service serves the built React website and FastAPI routes, so no separate frontend service or public API-base configuration is needed. This project has not been published or deployed yet.
+The target is **one Render Free web service plus Neon Free PostgreSQL**. Neon is connected and the local app now uses it. The same application serves the built React website and FastAPI routes, so no separate frontend service or public API-base configuration is needed. The repository and public Render website have not been published yet. `neon deploy` configures Neon services; it does not deploy this website to Render.
 
 ## Why PostgreSQL is required
 
@@ -14,6 +14,8 @@ SQLite remains the local development default. Setting `DATABASE_URL` selects Pos
 - `.dockerignore` excludes credentials, local databases, evaluation artifacts, and development dependencies.
 - `render.yaml` selects `plan: free`, leaves automatic deployments off, and starts with live research paused. The service's health check is `/healthz`, which makes no provider or database call.
 - `backend/app/migrate.py` imports reports, correction history, successful usage, and attempted requests from the local database into an empty hosted database. It refuses to overwrite or merge an existing destination.
+- `neon.ts` declares the linked project's PostgreSQL service policy. Authentication is disabled and existing branch settings are preserved. Root `package.json` and `pnpm-lock.yaml` pin its configuration dependencies.
+- `backend/app/verify_database.py` checks PostgreSQL while research is paused, using uniquely identified disposable rows. It tests report writes/reads/updates, concurrent quota reservations, imported sequence continuity, and cleanup without contacting AI providers.
 - `.github/workflows/verify.yml` runs the unit suite, tests the PostgreSQL path against a disposable local PostgreSQL service, builds the locked website, and builds the image. It uses no real provider keys.
 
 Production startup requires PostgreSQL, a built website, and a private rate-limit secret. Enabling hosted live research also requires the spending-history import marker. Paid provider reservations check that marker for every PostgreSQL connection, including local development against the remote database. Recreating the application container or adding a new database URL must not silently create a fresh spending allowance.
@@ -26,7 +28,9 @@ Application defaults remain 30 Nebius attempts per UTC day / 60 total, and 20 Ta
 
 ## Setup sequence
 
-1. Create a Neon Free account/project. Copy its PostgreSQL connection URL, including SSL settings, into `backend/.env` as `DATABASE_URL`. Never paste it in chat or commit it. Keep `STUDYLENS_LIVE_ENABLED=false` while preparing migration.
+Steps 1–3 are complete for the current project. Do not repeat the import into the populated destination.
+
+1. Create a Neon Free account/project. Link it using the official Neon CLI and pull its PostgreSQL environment into `backend/.env` with `neon env pull --service postgres --file backend/.env`. Never paste connection strings in chat or commit them. Keep `STUDYLENS_LIVE_ENABLED=false` while preparing migration.
 2. Finish any in-flight local investigations, pause and stop all local API workers, and keep the hosted service paused. This prevents either environment from adding spending during the transfer.
 3. From `backend`, run `uv run python -m app.migrate --sqlite studylens.db`. It reads the source in a consistent read-only transaction, imports all reports and usage, and marks the destination ready. Keep the original SQLite database as a backup. A configured database error must be fixed rather than worked around with a new database.
 4. When publication is authorized, publish the repository with its existing license. The GitHub connection is available locally, but no remote was configured or created during preparation. Wait for the **Verify app and deployment image** workflow to pass, including its PostgreSQL tests and Docker build.
@@ -38,8 +42,18 @@ Render Free sleeps after 15 minutes idle and may take about a minute to wake. Op
 
 ## Local verification and remaining gates
 
-The built frontend was served directly by FastAPI on port 8100 for the browser screenshot and correction checks. Offline tests cover decoded-image limits, route ordering, no SQLite fallback, production startup requirements, migration preservation, and request quotas.
+The official Neon CLI 8.13.2 was run through `pnpm dlx` because npm was absent from the normal Windows PATH. After browser sign-in, `neon init` linked the existing production branch with PostgreSQL only and `--no-agent-setup`; no additional agent access was configured. `neon deploy` reported **No changes** and **Utilized services: Postgres**. No installed Neon agent skills were found, so the existing Python/psycopg adapter and official CLI documentation guided setup.
 
-The Docker CLI is installed, but its Linux engine was unavailable during preparation. Consequently the image build and real PostgreSQL tests were not executed locally. The PostgreSQL tests skip unless `STUDYLENS_TEST_POSTGRES_URL` points to a disposable `localhost/studylens_test` database; they refuse a hosted database and create/drop only their own random test schemas. The prepared GitHub workflow supplies that service and runs the checks before deployment. It has not run on GitHub yet.
+Private connection variables are in ignored root `.env.local` and `backend/.env`; the local `.neon` context and dependency folders are also ignored. The backend reads its own `.env`. Database credentials are never frontend build variables.
 
-The Neon account/project, private database URL, repository publication, cloud build, paused deployment verification, and final enablement are still pending.
+The SQLite import preserved **13 reports, 27 usage records, and 25 attempt records**, including corrections. Historical usage without an attempt record is still counted: real lifetime counters remain **27 Nebius and 7 Tavily**. The original SQLite file remains the backup. All API workers were stopped for the import and the resumed app uses PostgreSQL with research paused.
+
+`uv run python -m app.verify_database` passed against the actual Neon database with TLS required. Eight concurrent disposable reservations accepted two and blocked six under a cap of two. Write/read/update, sequence continuity, usage counting, and cleanup passed. Original row counts and real provider counters were unchanged; **zero Nebius/Tavily calls** were made. See `evaluation/results/neon-storage-verification.json`.
+
+The root `npm run build` passed, and `npm start` served the built frontend and API on port 8000. `/api/health` returned PostgreSQL and live research disabled. A migrated report opened in the browser with its Kaplan source, contradiction assessment, and prior Chinchilla correction history. The offline suite passed **51 tests**, with the three local PostgreSQL service tests skipped. Windows-generated pytest/uvicorn launchers initially failed to canonicalize their paths; scripts now use `python -m pytest` and `python -m uvicorn`, which passed.
+
+For subsequent local checks, install the root and web dependencies, sync the backend environment, and use `npm run build`, `npm test`, `npm run verify:database`, and `npm start`. To serve the built website locally set `STUDYLENS_WEB_DIST=../web/dist` in `backend/.env`. Database verification requires research to remain paused and a completed spending-history import.
+
+The Docker CLI is installed, but its Linux engine was unavailable during preparation. The image build and three disposable-service PostgreSQL tests remain pending. Those tests require `STUDYLENS_TEST_POSTGRES_URL` pointing to `localhost/studylens_test`; they deliberately refuse a hosted database and create/drop only their own random test schemas. The prepared GitHub workflow supplies that service and runs these checks before deployment. It has not run on GitHub yet. The separate Neon verification above does not replace these CI checks.
+
+Repository publication, the CI/cloud image build, Render billing checks, paused Render deployment verification, and final enablement are still pending. Keep live research disabled until those gates pass.

@@ -1,0 +1,16 @@
+{
+  "name": "studylens",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "build": "pnpm --dir web build && uv --directory backend run python -m compileall -q app",
+    "test": "uv --directory backend run python -m pytest -q",
+    "verify:database": "uv --directory backend run python -m app.verify_database",
+    "start": "uv --directory backend run python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.5",
+    "@neon/env": "^1.6.6"
+  }
+}

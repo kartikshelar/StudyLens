@@ -1,4 +1,5 @@
 .git
+.neon
 **/.env
 **/.env.*
 **/.venv

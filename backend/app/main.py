@@ -321,6 +321,7 @@ def liveness() -> dict[str, str]:
 def health() -> dict[str, Any]:
     return {
         "status": "ok",
+        "database_engine": "postgresql" if os.getenv("DATABASE_URL") else "sqlite",
         "providers_configured": configured(),
         "nebius_budget": nebius_budget_status(),
         "tavily_budget": provider_budget_status("tavily"),

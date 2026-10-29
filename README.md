@@ -23,7 +23,7 @@ The local web interface, API, persistence, and offline integration tests are in 
 Install Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+, and [pnpm](https://pnpm.io/installation). From the `studylens` folder:
 
 1. In `backend`, copy `.env.example` to `.env` and fill in `NEBIUS_API_KEY` and `TAVILY_API_KEY`. Do not commit `.env` or paste keys into a chat. The hackathon's [Resources page](https://nebiusglobalaihackathon.devpost.com/resources) explains the Nebius credit claim; obtain Tavily access from its official site or the hackathon benefits.
-2. In `backend`, run `uv sync --extra dev`, then `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`.
+2. In `backend`, run `uv sync --extra dev`, then `uv run python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`.
 3. In a second terminal in `web`, run `pnpm install`, then `pnpm dev`. Open `http://127.0.0.1:5173`.
 
 The Vite development server forwards `/api` calls to port 8000. If the API or keys are missing, the interface shows that state. Its worked example can be explored without credentials and is visibly identified as an example, never as a live investigation.
@@ -34,12 +34,14 @@ Paid HTTP routes also allow at most 6 requests per minute and 20 per hour per ob
 
 These are request limits for this application and database, **not dollar limits or account billing controls**. They cannot cover API use outside this app, reconstruct old failed requests, or prevent a provider's account-level card charge. Tavily activity before the new attempt ledger is also untracked. No automatic top-up or paid account upgrade is configured by the application.
 
-The prepared hosted setup uses PostgreSQL through `DATABASE_URL`, with the local report and usage ledger imported before live requests can be enabled. Production rejects ephemeral SQLite and a configured PostgreSQL failure cannot fall back to fresh local counters. All workers must share the same database. Set a private `STUDYLENS_RATE_LIMIT_SECRET` shared by workers so client throttling is consistent. The throttle uses the ASGI-observed client address, not arbitrary forwarding headers. Clients behind one proxy may share a throttle until its trusted-proxy configuration is verified. Hosted persistence and proxy configuration remain unverified; follow [HOSTING.md](HOSTING.md) before deployment.
+The local app now uses Neon PostgreSQL through `DATABASE_URL`, with its existing reports and spending history imported. Real database checks passed for report writes/reads/updates and concurrent quota reservations while research remained paused. Production rejects ephemeral SQLite and a configured PostgreSQL failure cannot fall back to fresh local counters. All workers must share the same database. Set a private `STUDYLENS_RATE_LIMIT_SECRET` shared by workers so client throttling is consistent. The throttle uses the ASGI-observed client address, not arbitrary forwarding headers. Clients behind one proxy may share a throttle until its trusted-proxy configuration is verified. The public Render deployment, its restart/persistence check, and proxy configuration remain pending; follow [HOSTING.md](HOSTING.md).
 
 ## Verify
 
-- `cd backend && uv run pytest -q`
+- `cd backend && uv run python -m pytest -q`
 - `cd web && pnpm build`
+- From the repository root, `npm run build` builds the website and checks Python compilation; `npm start` serves it when `STUDYLENS_WEB_DIST=../web/dist` is set in `backend/.env`.
+- With Neon configured and research paused, `npm run verify:database` checks disposable database records and quotas without paid provider calls. See [the recorded results](evaluation/results/neon-storage-verification.json).
 - Check `/api/health` for `providers_configured`, then run one real claim and inspect the source page yourself.
 
 The nine-case diagnostic set and evaluation CLI are described in [evaluation/README.md](evaluation/README.md). `uv run python -m app.evaluate` from `backend` validates it offline. Live evaluation requires explicit case IDs and per-run request caps. Machine-checkable results remain separate from pending human evidence review; provider failures cannot count as successful abstentions.

@@ -41,7 +41,7 @@ jobs:
         working-directory: backend
         run: |
           uv sync --frozen --extra dev --python 3.12
-          uv run pytest -q
+          uv run python -m pytest -q
           uv run python -m app.evaluate
       - name: Build website from the lockfile
         working-directory: web
