@@ -1,0 +1,23 @@
+{
+  "site": "https://studylens-id7z.onrender.com/",
+  "repository": "https://github.com/kartikshelar/StudyLens",
+  "ci_run": "https://github.com/kartikshelar/StudyLens/actions/runs/40829176988",
+  "ci_result": "success",
+  "ci_checks": ["backend tests including disposable PostgreSQL", "frontend build", "production Docker image build"],
+  "render_restart": "user reported completion; endpoints checked afterward",
+  "post_restart": {
+    "liveness": "ok",
+    "database_engine": "postgresql",
+    "live_research_enabled": false,
+    "nebius_total_attempts": 27,
+    "tavily_total_attempts": 7,
+    "report_id": "f8ed23ba-e2fd-4284-813e-2615de7edcc4",
+    "report_status": "candidate_source",
+    "selected_source": "https://arxiv.org/abs/2001.08361",
+    "correction_count": 1,
+    "comparison": "contradicts"
+  },
+  "browser_checks": ["homepage loaded", "worked example loaded without provider calls", "corrected saved report loaded with research pause notice"],
+  "paid_provider_calls_made_for_verification": 0,
+  "remaining": ["Render billing controls and Blueprint Auto Sync confirmation", "hosted mobile and proxy review", "live research quality checks", "hackathon submission"]
+}
