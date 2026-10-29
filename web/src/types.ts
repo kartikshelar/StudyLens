@@ -24,6 +24,8 @@ export type Source = {
   title: string
   url: string
   snippet: string
+  authors?: string
+  published?: string
 }
 
 export type Comparison = {
@@ -36,6 +38,8 @@ export type Comparison = {
   excerpt_verified: boolean
   relation?: 'supports' | 'partly_supports' | 'contradicts' | 'does_not_address'
   text_coverage?: 'abstract_only' | 'full_text' | 'unclear'
+  quote_method?: 'indexed_passages' | 'model_copy' | string
+  quote_selection?: number[]
 }
 
 export type Report = {

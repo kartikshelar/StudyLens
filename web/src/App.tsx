@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { correctSource, extractImage, extractText, getHealth, getReport, investigate } from './api'
-import type { Draft, HealthStatus, NebiusBudget, Report } from './types'
+import type { Comparison, Draft, HealthStatus, NebiusBudget, Report } from './types'
 
 type Stage = 'input' | 'extracting' | 'review' | 'investigating' | 'result'
 type ServiceState = 'checking' | 'ready' | 'nebius_missing' | 'tavily_missing' | 'both_missing' | 'unavailable'
@@ -62,6 +62,14 @@ function budgetLabel(remaining: number): string {
   if (remaining <= 0) return 'No model calls available.'
   if (remaining === 1) return '1 model call available today.'
   return `${remaining} model calls available today.`
+}
+
+function relationLabel(relation: Comparison['relation']): string {
+  if (relation === 'supports') return 'Supports'
+  if (relation === 'partly_supports') return 'Partly supports'
+  if (relation === 'contradicts') return 'Contradicts'
+  if (relation === 'does_not_address') return 'Does not address'
+  return ''
 }
 
 function findingParts(message: string): { lead: string; reason: string } {
@@ -286,13 +294,14 @@ function App() {
             {stage === 'result' && report ? (
               <div className="report-body">
                 {isExample && <div className="example-ribbon"><span>Worked example</span><p>Prepared from a published abstract to show the interface. No live model call was used for this example.</p></div>}
-                <div className={`finding-status ${report.status}`}><span className="status-symbol" aria-hidden="true">{report.status === 'candidate_source' ? '↗' : '?'}</span><div><strong>{isExample ? 'Published source in this example' : report.status === 'candidate_source' ? 'Candidate source found' : 'Source not confirmed'}</strong><p>{findingParts(report.message).lead}</p>{findingParts(report.message).reason && <p className="finding-reason">{findingParts(report.message).reason}</p>}</div></div>
+                <div className={`finding-status ${report.status}`}><span className="status-symbol" aria-hidden="true">{report.status === 'candidate_source' ? '↗' : '?'}</span><div><strong>{isExample ? 'Published source in this example' : report.status === 'candidate_source' ? 'Candidate match' : 'Source not confirmed'}</strong><p>{findingParts(report.message).lead}</p>{findingParts(report.message).reason && <p className="finding-reason">{findingParts(report.message).reason}</p>}{!isExample && report.status === 'candidate_source' && <p className="finding-reason">The source identity is still a candidate. Open the paper and check the match yourself.</p>}</div></div>
                 {report.selected_source && report.comparison && <>
-                  <div className="source-title"><span>{isExample ? 'Published paper' : 'Original research candidate'}</span><SourceLink title={report.selected_source.title} url={report.selected_source.url} /></div>
+                  <div className="source-title"><span>{isExample ? 'Published paper in this example' : 'Candidate match'}</span><SourceLink title={report.selected_source.title} url={report.selected_source.url} />{(report.selected_source.authors || report.selected_source.published) && <p className="source-meta">{[report.selected_source.published, report.selected_source.authors].filter(Boolean).join(' · ')}</p>}</div>
                   {report.selection_reason && <p className="selection-reason">Why this source: {report.selection_reason}</p>}
-                  <div className="source-quote"><span>Passage found in the source</span>{report.comparison.text_coverage === 'abstract_only' && <p className="coverage-note">Abstract only · Partial evidence, not the full paper.</p>}<blockquote>“{report.comparison.supporting_excerpt}”</blockquote></div>
-                  <p className="model-summary-label">Model summary of the passage · Verify against the source</p>
-                  <div className="comparison-grid"><div><h3>What was tested</h3><p>{report.comparison.study_tested || 'Not stated in the accessible text.'}</p></div><div><h3>What the study found</h3><p>{report.comparison.study_found || 'Not stated in the accessible text.'}</p></div><div className="wording-gap"><h3>Where the wording changes</h3><p>{report.comparison.wording_gap || 'No clear wording difference identified.'}</p></div></div>
+                  <div className="source-quote"><span>{report.comparison.quote_method === 'indexed_passages' ? 'Copied from the source passages' : 'Passage found in the source'}</span>{report.comparison.quote_method === 'indexed_passages' && <p className="quote-provenance">These sentences were copied from the retrieved text. The model selected the passages and did not rewrite the quotation.</p>}{report.comparison.text_coverage === 'abstract_only' && <p className="coverage-note">Abstract only. This is partial evidence: the passage and the assessment below use the abstract, not the full paper.</p>}<blockquote>“{report.comparison.supporting_excerpt}”</blockquote></div>
+                  {relationLabel(report.comparison.relation) && <div className={`relation-note ${report.comparison.relation}`}><span>Model assessment of the claim</span><strong>{relationLabel(report.comparison.relation)}</strong><p>The model compared the claim with the accessible source text. Supports, partly supports, and contradicts are that reading, not a verdict.</p></div>}
+                  <p className="model-summary-label">Model summary of the passage, not a quotation. Check it against the passage above.</p>
+                  <div className="comparison-grid"><div><h3>What was tested</h3><p>{report.comparison.study_tested || 'Not stated in the accessible text.'}</p></div><div><h3>What the study found</h3><p>{report.comparison.study_found || 'Not stated in the accessible text.'}</p></div>{report.comparison.wording_gap && <div className="wording-gap"><h3>Where the wording changes</h3><p>{report.comparison.wording_gap}</p></div>}</div>
                   {report.comparison.uncertainties.length > 0 && <div className="uncertainties"><h3>Still uncertain</h3><ul>{report.comparison.uncertainties.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
                 </>}
                 {!isExample && <>
