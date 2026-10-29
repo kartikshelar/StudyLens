@@ -340,6 +340,8 @@ async def extract_text(payload: TextInput) -> dict[str, str]:
                         "Extract one checkable science or technology research claim from the user text. "
                         "Return JSON only with claim and search_query strings. "
                         "Preserve numbers, populations, and uncertainty words exactly. "
+                        "Keep any stated paper title, author, and year in the claim itself; these details identify the study even when its result is misstated. "
+                        "Do not move identifying details only to search_query. Preserve names and dates as written. "
                         "Do not add claims not present in the input. If no research claim exists, return empty strings. "
                         "Build search_query from identifying details such as author, institution, venue, year, model, drug, or dataset when stated."
                     ),
@@ -376,7 +378,8 @@ async def extract_image(image: UploadFile = File(...)) -> dict[str, str]:
                     "content": (
                         "Read this screenshot. Extract one visible, checkable claim about a research result. "
                         "Return JSON only with claim and search_query strings. "
-                        "Preserve numbers and qualifiers exactly. Never invent text that is not visible."
+                        "Preserve numbers and qualifiers exactly. Keep any visible paper title, author, and year in the claim itself, not only search_query. "
+                        "Preserve names and dates as shown. Never invent text that is not visible."
                     ),
                 },
                 {
