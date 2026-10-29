@@ -24,7 +24,7 @@ Production startup requires PostgreSQL, a built website, and a private rate-limi
 
 `plan: free` selects free compute; it is not an account-wide dollar cap. Render's documentation says bandwidth and build overages may be billed when a payment method is present. Without a payment method, it instead suspends services or disables new builds when those allowances are exhausted. Keep this demo in a Free workspace without a payment method, and set the build spending limit to zero where available. If the existing workspace has billing attached, resolve its billing controls before deploying this demo. Do not select a paid service, disk, database, or Neon plan.
 
-Application defaults remain 30 Nebius attempts per UTC day / 60 total, and 20 Tavily requests per UTC day / 40 total. Attempts that fail still count. These limits are shared by all workers using the same database, and do not replace account billing controls or cover activity elsewhere with the same keys.
+Application defaults remain 30 Nebius attempts per UTC day / 60 total, and 20 Tavily requests per UTC day / 40 total. The Render Blueprint sets tighter lifetime ceilings of 36 Nebius and 12 Tavily requests. The October 29 browser test left the persistent counters at 30 Nebius and 8 Tavily, so applying those ceilings would leave at most 6 Nebius and 4 Tavily requests for the public demo. Attempts that fail still count. These limits are shared by all workers using the same database, and do not replace account billing controls or cover activity elsewhere with the same keys.
 
 ## Setup sequence
 

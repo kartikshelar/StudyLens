@@ -28,11 +28,11 @@ services:
       - key: STUDYLENS_DAILY_NEBIUS_CALL_LIMIT
         value: "30"
       - key: STUDYLENS_TOTAL_NEBIUS_CALL_LIMIT
-        value: "60"
+        value: "36"
       - key: STUDYLENS_DAILY_TAVILY_CALL_LIMIT
         value: "20"
       - key: STUDYLENS_TOTAL_TAVILY_CALL_LIMIT
-        value: "40"
+        value: "12"
       - key: STUDYLENS_REQUESTS_PER_MINUTE
         value: "6"
       - key: STUDYLENS_REQUESTS_PER_HOUR
