@@ -1,0 +1,305 @@
+{
+  "recorded_at": "2026-10-29T00:21:11.686749+00:00",
+  "scope": "Two diagnostic cases across three live-search iterations and one cached-source comparison check. Not a real-world accuracy estimate.",
+  "human_label_review": "pending",
+  "full_nine_case_evaluation": "not_run",
+  "findings": [
+    "Initial search missed the Kaplan paper and the model accepted a later citing paper.",
+    "Official arXiv metadata, bounded citation following, and author/date exclusions recovered the named source.",
+    "Lightning labeled a contradiction inconsistently; comparisons were routed to Nemotron Super.",
+    "A Super quote failed verbatim matching; indexed passage selection now copies the source text on the server.",
+    "The final two cached-source checks passed machine-checkable criteria; no fresh full search was repeated after the passage protocol changed."
+  ],
+  "total_requests": {
+    "nebius": 14,
+    "tavily": 6
+  },
+  "runs": [
+    {
+      "name": "first-pair",
+      "mode": "live",
+      "created_at": "2026-10-29T00:03:26.064314+00:00",
+      "note": "Small diagnostic set; automated checks are not a real-world accuracy estimate. Human review pending.",
+      "summary": {
+        "cases": 2,
+        "checks_passed": 1,
+        "checks_failed": 1,
+        "error": 0,
+        "not_run": 0,
+        "human_reviews_completed": 0
+      },
+      "requests": {
+        "nebius": 4,
+        "tavily": 2
+      },
+      "cases": [
+        {
+          "case_id": "match-chinchilla",
+          "result": "checks_passed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": true,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2203.15556",
+          "relation": "supports",
+          "quote_method": null,
+          "latency_seconds": 6.732,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1349,
+              "completion_tokens": 321,
+              "total_tokens": 1670
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "744dd654-bfe4-452a-92a3-09b1f3203137"
+        },
+        {
+          "case_id": "match-kaplan-contradicts",
+          "result": "checks_failed",
+          "checks": {
+            "source_found": true,
+            "correct_source": false,
+            "correct_relation": false,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2203.15556",
+          "relation": "supports",
+          "quote_method": null,
+          "latency_seconds": 6.855,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1143,
+              "completion_tokens": 308,
+              "total_tokens": 1451
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "f8ed23ba-e2fd-4284-813e-2615de7edcc4"
+        }
+      ]
+    },
+    {
+      "name": "identity-retry",
+      "mode": "live",
+      "created_at": "2026-10-29T00:11:45.628779+00:00",
+      "note": "Small diagnostic set; automated checks are not a real-world accuracy estimate. Human review pending.",
+      "summary": {
+        "cases": 2,
+        "checks_passed": 1,
+        "checks_failed": 1,
+        "error": 0,
+        "not_run": 0,
+        "human_reviews_completed": 0
+      },
+      "requests": {
+        "nebius": 4,
+        "tavily": 2
+      },
+      "cases": [
+        {
+          "case_id": "match-chinchilla",
+          "result": "checks_passed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": true,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2203.15556",
+          "relation": "supports",
+          "quote_method": null,
+          "latency_seconds": 4.06,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1544,
+              "completion_tokens": 482,
+              "total_tokens": 2026
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "76f742e8-490b-4376-808b-577cd56ab3f0"
+        },
+        {
+          "case_id": "match-kaplan-contradicts",
+          "result": "checks_failed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": false,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2001.08361",
+          "relation": "partly_supports",
+          "quote_method": null,
+          "latency_seconds": 3.282,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1042,
+              "completion_tokens": 323,
+              "total_tokens": 1365
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "e9fd92fb-dc5b-4a74-948d-103abeed6943"
+        }
+      ]
+    },
+    {
+      "name": "super-comparison",
+      "mode": "live",
+      "created_at": "2026-10-29T00:14:34.037880+00:00",
+      "note": "Small diagnostic set; automated checks are not a real-world accuracy estimate. Human review pending.",
+      "summary": {
+        "cases": 2,
+        "checks_passed": 1,
+        "checks_failed": 1,
+        "error": 0,
+        "not_run": 0,
+        "human_reviews_completed": 0
+      },
+      "requests": {
+        "nebius": 4,
+        "tavily": 2
+      },
+      "cases": [
+        {
+          "case_id": "match-chinchilla",
+          "result": "checks_failed",
+          "checks": {
+            "source_found": false,
+            "correct_source": false,
+            "correct_relation": false,
+            "application_quote_check": false,
+            "abstract_labeled": true
+          },
+          "selected_url": null,
+          "relation": null,
+          "quote_method": null,
+          "latency_seconds": 4.422,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1619,
+              "completion_tokens": 425,
+              "total_tokens": 2044
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "2d9fe7c8-f1e4-4d34-a64b-7e2ac31f8276"
+        },
+        {
+          "case_id": "match-kaplan-contradicts",
+          "result": "checks_passed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": true,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2001.08361",
+          "relation": "contradicts",
+          "quote_method": null,
+          "latency_seconds": 3.276,
+          "usage": {
+            "nebius": {
+              "total_call_count": 2,
+              "prompt_tokens": 1117,
+              "completion_tokens": 280,
+              "total_tokens": 1397
+            },
+            "tavily": {
+              "total_call_count": 1
+            }
+          },
+          "report_id": "f340c764-def5-4fee-8205-0b8f14275d2d"
+        }
+      ]
+    },
+    {
+      "name": "passage-reassessment",
+      "mode": "cached_source_reassessment",
+      "created_at": "2026-10-29T00:18:37.857620+00:00",
+      "note": "Reuses the live-search source selections and official abstracts from identity-retry.json; this is a comparison check, not a fresh end-to-end search. Human review remains pending.",
+      "summary": {
+        "cases": 2,
+        "checks_passed": 2,
+        "checks_failed": 0,
+        "error": 0,
+        "not_run": 0,
+        "human_reviews_completed": 0
+      },
+      "requests": {
+        "nebius": 2,
+        "tavily": 0
+      },
+      "cases": [
+        {
+          "case_id": "match-chinchilla",
+          "result": "checks_passed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": true,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2203.15556",
+          "relation": "supports",
+          "quote_method": "indexed_passages",
+          "latency_seconds": 1.536,
+          "usage": {
+            "call_count": 1,
+            "prompt_tokens": 878,
+            "completion_tokens": 138,
+            "total_tokens": 1016
+          },
+          "report_id": "c9bad215-ed6e-40f4-8f50-fa6d90ee0a2c"
+        },
+        {
+          "case_id": "match-kaplan-contradicts",
+          "result": "checks_passed",
+          "checks": {
+            "source_found": true,
+            "correct_source": true,
+            "correct_relation": true,
+            "application_quote_check": true,
+            "abstract_labeled": true
+          },
+          "selected_url": "https://arxiv.org/abs/2001.08361",
+          "relation": "contradicts",
+          "quote_method": "indexed_passages",
+          "latency_seconds": 1.408,
+          "usage": {
+            "call_count": 1,
+            "prompt_tokens": 661,
+            "completion_tokens": 150,
+            "total_tokens": 811
+          },
+          "report_id": "4bcfe8c3-5192-4481-9889-61b5e7d3bc01"
+        }
+      ]
+    }
+  ]
+}

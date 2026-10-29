@@ -28,7 +28,13 @@ Install Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+, and [pnpm](
 
 The Vite development server forwards `/api` calls to port 8000. If the API or keys are missing, the interface shows that state. Its worked example can be explored without credentials and is visibly identified as an example, never as a live investigation.
 
-The API disables model reasoning for structured extraction, caps each model response at 800 tokens by default, records returned token usage in the local SQLite database, and stops after 30 Nebius calls per UTC day. Override `NEBIUS_MAX_OUTPUT_TOKENS` or `STUDYLENS_DAILY_NEBIUS_CALL_LIMIT` only after checking the Token Factory balance. These application controls do not replace account billing controls; keep automatic top-ups disabled if the account must never charge a card.
+The API disables model reasoning for structured extraction and caps each model response at 800 tokens by default. It reserves a persistent request slot **before** each paid provider request, including requests that time out or return invalid data. The reservation is atomic, so simultaneous requests cannot bypass the quota. Returned token usage is recorded separately. Default caps are 30 Nebius attempts per UTC day and 60 total, plus 20 Tavily requests per UTC day and 40 total. Tavily Search and Extract share its quota; the free arXiv metadata read uses neither paid quota. The total caps do not reset each day.
+
+Paid HTTP routes also allow at most 6 requests per minute and 20 per hour per observed client address. Saved reports, health reads, and the worked example remain available. Set `STUDYLENS_LIVE_ENABLED=false` and restart the API to pause paid routes. Setting any provider request limit to `0` blocks new requests to that provider. See `backend/.env.example` for the controls. Increase caps only after checking actual provider balances.
+
+These are request limits for this application and database, **not dollar limits or account billing controls**. They cannot cover API use outside this app, reconstruct old failed requests, or prevent a provider's account-level card charge. Tavily activity before the new attempt ledger is also untracked. No automatic top-up or paid account upgrade is configured by the application.
+
+Before hosting, keep the SQLite database on persistent storage and use one shared backend database. Recreating it resets its counters; independent replicas have independent caps. Set a private `STUDYLENS_RATE_LIMIT_SECRET` shared by workers so client throttling is consistent. The throttle uses the ASGI-observed client address, not arbitrary forwarding headers; configure only the hosting provider's trusted proxy if distinct client addresses are needed. Without that setup, clients behind one proxy may share a throttle. Hosted persistence and proxy configuration remain unverified.
 
 ## Verify
 
@@ -36,11 +42,17 @@ The API disables model reasoning for structured extraction, caps each model resp
 - `cd web && pnpm build`
 - Check `/api/health` for `providers_configured`, then run one real claim and inspect the source page yourself.
 
+The nine-case diagnostic set and evaluation CLI are described in [evaluation/README.md](evaluation/README.md). `uv run python -m app.evaluate` from `backend` validates it offline. Live evaluation requires explicit case IDs and per-run request caps. Machine-checkable results remain separate from pending human evidence review; provider failures cannot count as successful abstentions.
+
 ## How the services are used
 
-NVIDIA Nemotron through **Nebius Token Factory** extracts the claim, chooses a candidate source, and compares the claim to retrieved text. A vision-capable Nemotron model is intended for screenshot extraction. **Tavily Search** finds candidate research pages; **Tavily Extract** retrieves accessible source text for supported pages. For arXiv papers, the official arXiv metadata API supplies the abstract when available. The API verifies that each displayed quote is present in the retrieved text and asks the model whether the page is the original study. Neither check proves provenance, so the UI labels the result a candidate and retains reader corrections.
+NVIDIA Nemotron through **Nebius Token Factory** extracts the claim, chooses a candidate source, and compares the claim to retrieved text. A vision-capable Nemotron model is intended for screenshot extraction. **Tavily Search** finds candidate research pages; **Tavily Extract** retrieves accessible source text for supported pages. For arXiv papers, the official metadata API supplies titles, authors, submission dates, and abstracts. Up to three explicit arXiv citations in search results can be resolved in the same metadata request, helping recover an original paper when search returns a later citing paper. Retrieved official abstracts are reused within that report.
 
-Current local defaults are `nvidia/Nemotron-3_5-Lightning` for text and `nvidia/Nemotron-3.5-Super-VL` for images. The text model's request format has been verified live; screenshot extraction with the vision model still needs a live check. The supported primary-source domains are listed in `backend/app/providers.py`.
+When official arXiv metadata conflicts with an explicit author attribution or a single study year in the claim, the candidate is excluded. A preprint earlier than a claimed journal year remains eligible. These narrow guards do not establish provenance for every source. The model still assesses original-study status, and the UI labels results as candidates with reader corrections.
+
+For quotation, the comparison model selects one to three consecutive passage IDs. The server copies those passages from the retrieved text and checks them against the source, preserving original formatting and wording. It does not ask the model to transcribe the quote. Older responses with a copied quote must still pass verbatim matching. Selecting a real passage does not prove the model interpreted it correctly; summaries and comparison labels remain model outputs requiring inspection. The visible source identity note uses retrieved metadata, while an unverified selection rationale is kept in the trace.
+
+Current defaults are `nvidia/Nemotron-3_5-Lightning` for extraction and source selection, `nvidia/nemotron-3-super-120b-a12b` for comparison, and `nvidia/Nemotron-3.5-Super-VL` for images. The stronger comparison route was introduced after a diagnostic case exposed an inconsistent contradiction label in Lightning; this matches [Nebius's guidance on the Nemotron lineup](https://nebius.com/services/token-factory/models/nvidia-nemotron-models-inference). Both text routes have been verified live. Screenshot extraction with the vision model still needs a live check. The supported source domains and allowed model set are listed in `backend/app/providers.py`.
 
 ## Scope and limitations
 

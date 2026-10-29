@@ -1,6 +1,6 @@
 # StudyLens evaluation set (v1)
 
-A small, hand-checked set of public claims for testing source matching and abstention. It is the starting point for the labeled set required by Gate 3 in [MILESTONES.md](../MILESTONES.md). With nine cases it is a smoke test, not a measurement: do not report accuracy figures from it alone.
+A small set of public claims with source-record checks for testing source matching and abstention. It is the starting point for the labeled set required by Gate 3 in [MILESTONES.md](../MILESTONES.md). With nine cases it is a diagnostic test: do not present its results as real-world accuracy. The proposed expected labels still need manual review by Kartik; Git authorship does not establish that review occurred.
 
 All cases are in [cases.json](cases.json). Every title, identifier, URL, and passage was checked on **October 28, 2026** against the sources listed under "How each item was verified." No Nebius or Tavily calls were made to build it.
 
@@ -67,6 +67,8 @@ The first two pass after NFKC plus quote and dash normalization. The last two pa
 
 For each case, record the selected URL, the excerpt, the status, the trace, latency, and token use.
 
+The expected label `source_confirmed` maps to the application's `candidate_source` status. It means the expected paper was selected, not that the application has proved the paper's provenance or the truth of the public claim.
+
 | Case type | Pass |
 |---|---|
 | Expected source | The selected URL is in `accepted_urls`. The excerpt is an exact quote that states the source's own result, not a cited study's. No number appears in the model's summary fields unless it is in the source. Abstract-only URLs are labeled partial. |
@@ -74,6 +76,45 @@ For each case, record the selected URL, the excerpt, the status, the trace, late
 | Abstention | Status is "source not confirmed", and no decoy is presented as the claim's original study. Listing decoys as candidates to inspect is fine. |
 
 Score the `wording_gap_should_mention` points separately, by hand, as covered, partly covered, or missing. Publish the denominators and every failure, as Gate 3 requires.
+
+## Evaluation runner
+
+From `backend`, validate the dataset without loading provider credentials or making any network requests:
+
+```powershell
+uv run python -m app.evaluate
+```
+
+To score saved reports offline, put each API report in `<case-id>.json` within a directory and run:
+
+```powershell
+uv run python -m app.evaluate --reports-dir ../evaluation/saved-reports --output ../evaluation/runs/replay.json
+```
+
+The claim and search query in each report must exactly match that case's fixed inputs. Old ad-hoc smoke reports with different inputs cannot be counted as evaluation results. Missing reports are `not_run`. A provider failure is an `error`, never a successful abstention.
+
+Paid evaluation requires `--live` and explicit case IDs. This example allows at most two Nebius attempts and two Tavily requests, in addition to the project's persistent global quotas:
+
+```powershell
+uv run python -m app.evaluate --live --case-id match-chinchilla --max-cases 1 --max-model-calls 2 --max-tavily-requests 2
+```
+
+The live runner skips text extraction and uses the case's fixed claim and search query. It saves each result as it completes, including the report, request counts, returned token usage, latency, and per-check outcomes. It refuses to start another case without enough allowance for its worst-case two requests to each provider. Defaults permit at most two selected cases, four Nebius attempts, and four Tavily requests. No full live evaluation has been run yet.
+
+### First diagnostic iterations
+
+The [recorded diagnostic results](results/smoke-2026-10-29.json) preserve three two-case live-search iterations and a final comparison check using cached sources. They ran on October 28 Pacific / October 29 UTC:
+
+- The first run found Chinchilla, but incorrectly accepted that later paper for a claim explicitly attributed to Kaplan 2020.
+- Official metadata and citation following recovered Kaplan's original paper. Lightning then described a contradiction while labeling it partial support.
+- Routing comparisons to Nemotron Super corrected that contradiction label. Its Chinchilla quotation failed the strict text check.
+- Indexed passage selection removed the model's quotation-transcription step. Both cached-source comparisons then passed the automated checks, with one supporting result and one contradiction. This last check reused the prior successful source selections; it did not repeat live search.
+
+These iterations used 14 Nebius attempts and 6 Tavily Search requests in total. Earlier failures are retained, and human review remains pending. The full nine-case evaluation, final end-to-end rerun after the passage protocol change, and dollar-cost measurement remain open. The two passing comparison checks cannot be reported as nine-case accuracy or general reliability.
+
+`checks_passed` means the selected URL, relation, application quote-check signal, and abstract label meet the machine-checkable rubric. The runner does not independently fetch the paper again, establish that a quotation describes the authors' own result, or validate the model's summary. Those checks and the wording-gap review remain manual. Returned tokens are recorded usage, not a dollar-cost estimate; failed requests may have consumed provider resources without returning usage. Counts are for this local database and may include other activity running against it during evaluation. Use one tester at a time for clean measurements.
+
+Raw runs are ignored by Git until reviewed. Publish a curated result with its denominator, errors, skipped cases, and human review status when ready.
 
 ## Limitations
 

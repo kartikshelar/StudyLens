@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "verified_on": "2026-10-28",
-  "verified_by": "Kartik (hand review of records fetched from arXiv API, NCBI E-utilities, Crossref, and the publisher or index pages listed in each case)",
+  "verified_by": "Source-record and passage checks against arXiv API, NCBI E-utilities, Crossref, and the publisher or index pages listed in each case. Manual label review by Kartik is pending.",
+  "label_review_status": "human_review_pending",
   "notes": "Every title, identifier, and URL below was checked against the arXiv API, PubMed/PMC records, or Crossref, and every URL was fetched on the verification date. Passages are copied from those records. See evaluation/README.md for the method, field definitions, and scoring.",
   "cases": [
     {

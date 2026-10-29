@@ -2,15 +2,24 @@ import json
 import os
 import re
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
 
-from .store import provider_usage_since, record_provider_usage
+from .store import (
+    QuotaExceeded,
+    provider_attempt_counts,
+    provider_usage_since,
+    record_provider_usage,
+    reserve_provider_attempt,
+)
 
 TEXT_MODEL = "nvidia/Nemotron-3_5-Lightning"
+COMPARE_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 VISION_MODEL = "nvidia/Nemotron-3.5-Super-VL"
 NEBIUS_URL = "https://api.tokenfactory.nebius.com/v1/chat/completions"
 TAVILY_SEARCH_URL = "https://api.tavily.com/search"
@@ -41,6 +50,31 @@ class ProviderError(Exception):
     pass
 
 
+class ProviderLimitError(ProviderError):
+    pass
+
+
+_run_budget: ContextVar[dict[str, dict[str, int]] | None] = ContextVar("provider_run_budget", default=None)
+
+
+@contextmanager
+def request_budget(*, nebius: int, tavily: int):
+    """An additional per-run ceiling for the evaluation CLI; never changes global limits."""
+    budget = {
+        "nebius": {"limit": max(0, nebius), "used": 0},
+        "tavily": {"limit": max(0, tavily), "used": 0},
+    }
+    token = _run_budget.set(budget)
+    try:
+        yield budget
+    finally:
+        _run_budget.reset(token)
+
+
+def live_enabled() -> bool:
+    return os.getenv("STUDYLENS_LIVE_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+
+
 def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
     try:
         value = int(os.getenv(name, str(default)))
@@ -49,20 +83,42 @@ def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int
     return max(minimum, min(value, maximum))
 
 
-def nebius_budget_status() -> dict[str, int]:
-    limit = _bounded_env_int(
-        "STUDYLENS_DAILY_NEBIUS_CALL_LIMIT",
-        DEFAULT_DAILY_NEBIUS_CALL_LIMIT,
-        1,
-        500,
-    )
+def provider_budget_status(provider: str) -> dict[str, int]:
+    defaults = {"nebius": (DEFAULT_DAILY_NEBIUS_CALL_LIMIT, 60), "tavily": (20, 40)}
+    daily_default, total_default = defaults[provider]
+    prefix = provider.upper()
+    limit = _bounded_env_int(f"STUDYLENS_DAILY_{prefix}_CALL_LIMIT", daily_default, 0, 500)
+    total_limit = _bounded_env_int(f"STUDYLENS_TOTAL_{prefix}_CALL_LIMIT", total_default, 0, 1000)
     start_of_day = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00+00:00")
-    usage = provider_usage_since("nebius", start_of_day)
+    usage = provider_usage_since(provider, start_of_day)
+    attempts = provider_attempt_counts(provider, start_of_day)
     return {
         **usage,
+        **attempts,
         "call_limit": limit,
-        "calls_remaining": max(0, limit - usage["call_count"]),
+        "total_call_limit": total_limit,
+        "calls_remaining": max(0, min(limit - attempts["call_count"], total_limit - attempts["total_call_count"])),
     }
+
+
+def nebius_budget_status() -> dict[str, int]:
+    return provider_budget_status("nebius")
+
+
+def _reserve_request(provider: str, operation: str) -> int:
+    if not live_enabled():
+        raise ProviderLimitError("Live research is paused by the project owner.")
+    budget = _run_budget.get()
+    if budget is not None and budget[provider]["used"] >= budget[provider]["limit"]:
+        raise ProviderLimitError(f"The evaluation run's {provider.title()} request limit has been reached.")
+    status = provider_budget_status(provider)
+    try:
+        attempt_id = reserve_provider_attempt(provider, operation, status["call_limit"], status["total_call_limit"])
+    except QuotaExceeded as exc:
+        raise ProviderLimitError(str(exc)) from exc
+    if budget is not None:
+        budget[provider]["used"] += 1
+    return attempt_id
 
 
 def configured() -> dict[str, bool]:
@@ -125,16 +181,13 @@ def _json_from_model(content: str) -> dict[str, Any]:
     return value
 
 
-async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False) -> dict[str, Any]:
+async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False, model: str | None = None) -> dict[str, Any]:
     key = os.getenv("NEBIUS_API_KEY")
     if not key:
         raise ProviderError("Nebius access is not configured yet.")
-    budget = nebius_budget_status()
-    if budget["calls_remaining"] <= 0:
-        raise ProviderError(
-            "The local daily Nebius call limit has been reached. Increase it only after checking the Token Factory balance."
-        )
-    model = VISION_MODEL if vision else TEXT_MODEL
+    model = model or (VISION_MODEL if vision else TEXT_MODEL)
+    if model not in {TEXT_MODEL, COMPARE_MODEL, VISION_MODEL}:
+        raise ProviderError("The requested model is outside the project's configured model set.")
     payload = {
         "model": model,
         "messages": messages,
@@ -148,6 +201,7 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
         "reasoning_effort": "none",
         "response_format": {"type": "json_object"},
     }
+    attempt_id = _reserve_request("nebius", model)
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
@@ -164,6 +218,7 @@ async def nemotron_json(messages: list[dict[str, Any]], *, vision: bool = False)
                 int(usage.get("prompt_tokens", 0)),
                 int(usage.get("completion_tokens", 0)),
                 int(usage.get("total_tokens", 0)),
+                attempt_id=attempt_id,
             )
             choice = body["choices"][0]
             if choice.get("finish_reason") == "length":
@@ -184,6 +239,7 @@ async def tavily_search(query: str) -> list[dict[str, str]]:
     key = os.getenv("TAVILY_API_KEY")
     if not key:
         raise ProviderError("Tavily access is not configured yet.")
+    _reserve_request("tavily", "search")
     try:
         async with httpx.AsyncClient(timeout=45) as client:
             response = await client.post(
@@ -218,12 +274,47 @@ async def tavily_search(query: str) -> list[dict[str, str]]:
                 "snippet": str(item.get("content", "")),
             }
         )
-    return candidates
+    return await _resolve_arxiv_candidates(candidates)
+
+
+async def _resolve_arxiv_candidates(candidates: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Resolve paper identity and at most three explicit arXiv citations, in one free API read."""
+    direct_ids = [item["url"].rsplit("/", 1)[-1] for item in candidates
+                  if urlparse(item["url"]).hostname == "arxiv.org"]
+    citation_ids = []
+    for candidate in candidates:
+        for paper_id in re.findall(r"(?:arxiv\s*:\s*|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})", candidate["snippet"], re.I):
+            if paper_id not in direct_ids and paper_id not in citation_ids and len(citation_ids) < 3:
+                citation_ids.append(paper_id)
+    ids = list(dict.fromkeys(direct_ids + citation_ids))
+    if not ids:
+        return candidates
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            response = await client.get(ARXIV_API_URL, params={"id_list": ",".join(ids)})
+            response.raise_for_status()
+        records = _parse_arxiv_records(response.text)
+    except (httpx.HTTPError, ET.ParseError):
+        return candidates
+    resolved = []
+    seen = set()
+    for candidate in candidates:
+        record = records.get(candidate["url"])
+        resolved.append({**candidate, **record} if record else candidate)
+        seen.add(candidate["url"])
+    for paper_id in citation_ids:
+        url = f"https://arxiv.org/abs/{paper_id}"
+        if url in records and url not in seen:
+            resolved.append({**records[url], "discovery": "arXiv citation in a search result"})
+            seen.add(url)
+    return resolved
 
 
 async def tavily_extract(url: str, query: str) -> str:
-    if not research_page_url(url):
+    canonical_url = research_page_url(url)
+    if not canonical_url:
         raise ProviderError("That source is outside the supported research sites.")
+    url = canonical_url
     parsed = urlparse(url)
     if parsed.hostname == "arxiv.org":
         arxiv_id = parsed.path.removeprefix("/abs/")
@@ -239,6 +330,7 @@ async def tavily_extract(url: str, query: str) -> str:
     key = os.getenv("TAVILY_API_KEY")
     if not key:
         raise ProviderError("Tavily access is not configured yet.")
+    _reserve_request("tavily", "extract")
     try:
         async with httpx.AsyncClient(timeout=45) as client:
             response = await client.post(
@@ -259,17 +351,30 @@ async def tavily_extract(url: str, query: str) -> str:
 
 
 def _parse_arxiv_atom(document: str) -> str:
+    records = _parse_arxiv_records(document)
+    return next(iter(records.values()))["source_text"] if records else ""
+
+
+def _parse_arxiv_records(document: str) -> dict[str, dict[str, str]]:
     root = ET.fromstring(document)
     namespace = {"atom": "http://www.w3.org/2005/Atom"}
-    entry = root.find("atom:entry", namespace)
-    if entry is None:
-        return ""
-    title = " ".join((entry.findtext("atom:title", default="", namespaces=namespace)).split())
-    summary = " ".join((entry.findtext("atom:summary", default="", namespaces=namespace)).split())
-    authors = [
-        " ".join((author.findtext("atom:name", default="", namespaces=namespace)).split())
-        for author in entry.findall("atom:author", namespace)
-    ]
-    if not title or len(summary) < 200:
-        return ""
-    return f"Title: {title}\nAuthors: {', '.join(authors)}\nAbstract: {summary}"
+    records = {}
+    for entry in root.findall("atom:entry", namespace):
+        title = " ".join(entry.findtext("atom:title", default="", namespaces=namespace).split())
+        summary = " ".join(entry.findtext("atom:summary", default="", namespaces=namespace).split())
+        identifier = entry.findtext("atom:id", default="", namespaces=namespace)
+        match = re.search(r"/(\d{4}\.\d{4,5})(?:v\d+)?$", identifier)
+        if not match or not title or len(summary) < 200:
+            continue
+        url = f"https://arxiv.org/abs/{match.group(1)}"
+        authors = ", ".join(" ".join(author.findtext("atom:name", default="", namespaces=namespace).split())
+                            for author in entry.findall("atom:author", namespace))
+        published = entry.findtext("atom:published", default="", namespaces=namespace)[:10]
+        source_text = f"Title: {title}\nAuthors: {authors}\nFirst submitted: {published}\nAbstract: {summary}"
+        records[url] = {
+            "url": url, "title": title, "authors": authors, "published": published,
+            "snippet": f"Authors: {authors}\nFirst submitted: {published}\nAbstract: {summary}",
+            "source_text": source_text, "metadata_source": "arxiv_api",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        }
+    return records

@@ -67,7 +67,7 @@ async def test_invented_quote_is_not_presented_as_evidence(monkeypatch):
         return [{"url": "https://arxiv.org/abs/1234.5678", "title": "Study", "snippet": "Relevant."}]
 
     async def extract(_url, _query):
-        return "The accessible paper text is lengthy but does not support the claim. " * 5
+        return "The accessible paper text is lengthy but does not support the claim. " * 8
 
     calls = 0
 
@@ -91,6 +91,7 @@ async def test_invented_quote_is_not_presented_as_evidence(monkeypatch):
     assert report["status"] == "source_not_confirmed"
     assert report["selected_source"] is None
     assert report["comparison"] is None
+    assert calls == 2
 
 
 @pytest.mark.asyncio
@@ -183,7 +184,7 @@ async def test_citing_paper_with_real_quote_is_not_confirmed(monkeypatch):
         return [source]
 
     async def extract(_url, _query):
-        return "A later paper describes earlier research. Smith and Lee found the method improved accuracy in the original study. " * 3
+        return "A later paper describes earlier research. Smith and Lee found the method improved accuracy in the original study. " * 5
 
     calls = 0
 
@@ -206,6 +207,7 @@ async def test_citing_paper_with_real_quote_is_not_confirmed(monkeypatch):
     )
     assert report["status"] == "source_not_confirmed"
     assert report["selected_source"] is None
+    assert calls == 2
 
 
 @pytest.mark.asyncio
@@ -229,6 +231,22 @@ async def test_uncertainty_shapes_and_ungrounded_numbers(monkeypatch):
     assert comparison["uncertainties"] == ["The source notes a narrow sample."]
 
 
+@pytest.mark.asyncio
+async def test_summaries_longer_than_300_characters_are_preserved(monkeypatch):
+    wording_gap = "The claim says every task benefits, while the experiment covers only a narrowly defined translation benchmark. " * 4
+
+    async def model(_messages, **_kwargs):
+        return {"is_original_study": True,
+                "supporting_excerpt": "The authors evaluated the method using a narrowly defined translation benchmark.",
+                "wording_gap": wording_gap, "uncertainties": None}
+
+    monkeypatch.setattr(main, "nemotron_json", model)
+    comparison = await main._compare("Every task benefits.", "Study", "The authors evaluated the method using a narrowly defined translation benchmark.")
+    assert comparison["wording_gap"] == wording_gap.strip()
+    assert comparison["uncertainties"] == []
+    assert main._display_text("A sentence with several words " * 10, 50).endswith("…")
+
+
 def test_known_news_and_listing_urls_are_filtered():
     assert research_page_url("https://www.nature.com/articles/d41586-021-00001-x") is None
     assert research_page_url("https://www.science.org/content/article/example") is None
@@ -242,6 +260,8 @@ def test_known_news_and_listing_urls_are_filtered():
 
 def test_official_arxiv_metadata_has_verifiable_abstract_text():
     atom = """<feed xmlns="http://www.w3.org/2005/Atom"><entry>
+      <id>http://arxiv.org/abs/2203.15556v1</id>
+      <published>2022-03-29T00:00:00Z</published>
       <title>Training Compute-Optimal Large Language Models</title>
       <author><name>Jordan Hoffmann</name></author>
       <summary>We tested a series of language models under a fixed compute budget. The result showed that balancing model size and training data improved performance. This abstract contains enough context for a reader to inspect the claim and its limits in the original source.</summary>

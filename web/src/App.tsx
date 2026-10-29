@@ -59,9 +59,9 @@ function budgetFrom(health: HealthStatus): NebiusBudget | null {
 }
 
 function budgetLabel(remaining: number): string {
-  if (remaining <= 0) return 'No model calls remaining today.'
-  if (remaining === 1) return '1 model call remaining today.'
-  return `${remaining} model calls remaining today.`
+  if (remaining <= 0) return 'No model calls available.'
+  if (remaining === 1) return '1 model call available today.'
+  return `${remaining} model calls available today.`
 }
 
 function findingParts(message: string): { lead: string; reason: string } {
@@ -72,7 +72,7 @@ function findingParts(message: string): { lead: string; reason: string } {
 }
 
 function serviceLabel(state: ServiceState, exhausted: boolean): string {
-  if (state === 'ready' && exhausted) return 'Daily model limit reached'
+  if (state === 'ready' && exhausted) return 'Model call limit reached'
   if (state === 'ready') return 'Live research ready'
   if (state === 'checking') return 'Checking research service'
   if (state === 'nebius_missing') return 'Model access pending'
@@ -252,7 +252,7 @@ function App() {
         </section>
 
         {serviceState !== 'ready' && serviceState !== 'checking' && <div className="setup-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>{serviceState === 'unavailable' ? 'The research service is offline. The worked example is still available.' : serviceState === 'nebius_missing' ? 'Live investigations are waiting for Nebius model access. You can explore the worked example now.' : serviceState === 'tavily_missing' ? 'Live investigations are waiting for source search access. You can explore the worked example now.' : 'Live investigations are being connected. You can explore the worked example now.'}</span></div>}
-        {modelCallsExhausted && <div className="setup-notice budget-exhausted-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>No model calls remaining today. Live investigations are paused until the daily limit resets. The worked example is still available.</span></div>}
+        {modelCallsExhausted && <div className="setup-notice budget-exhausted-notice" role="status"><span className="notice-mark" aria-hidden="true">i</span><span>A project model call limit has been reached. Live investigations are paused. The worked example is still available.</span></div>}
         {error && <div className="error-notice" role="alert">{error}</div>}
 
         <div className="workbench" id="workbench">
